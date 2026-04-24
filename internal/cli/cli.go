@@ -39,6 +39,7 @@ type rootOptions struct {
 	ConfigDir string
 	Help      bool
 	Agent     bool
+	Version   bool
 }
 
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -80,6 +81,9 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func (a *app) execute(ctx context.Context) error {
+	if a.root.Version {
+		return a.version()
+	}
 	if len(a.args) == 0 {
 		return a.render(output.Result{Data: commandCatalog(), Summary: "Tripsy CLI commands", Human: rootHelp()})
 	}
@@ -122,9 +126,26 @@ func (a *app) execute(ctx context.Context) error {
 		return a.render(output.Result{Data: commandCatalog(), Summary: "Tripsy CLI commands", Human: commandsHuman()})
 	case "doctor":
 		return a.doctor(ctx, a.args[1:])
+	case "version":
+		return a.version()
 	default:
 		return usageError("unknown command %q", a.args[0])
 	}
+}
+
+func (a *app) version() error {
+	if a.root.JSON {
+		return a.render(output.Result{
+			Data: map[string]any{
+				"version": Version,
+				"commit":  Commit,
+				"date":    Date,
+			},
+			Summary: versionString(),
+		})
+	}
+	_, err := fmt.Fprintln(a.stdout, versionString())
+	return err
 }
 
 func (a *app) handleHelp() error {
@@ -178,6 +199,8 @@ func parseRootFlags(args []string) (rootOptions, []string, error) {
 			opts.Quiet = true
 		case arg == "--help" || arg == "-h":
 			opts.Help = true
+		case arg == "--version" || arg == "-v":
+			opts.Version = true
 		case arg == "--agent":
 			opts.Agent = true
 		case arg == "--api-base":
@@ -1934,6 +1957,12 @@ func commandCatalog() []commandSpec {
 			Summary:  "Check config, token presence, and authenticated API access.",
 			Examples: []string{"tripsy doctor", "tripsy doctor --verbose --json"},
 		},
+		{
+			Name:     "version",
+			Usage:    "tripsy version",
+			Summary:  "Print the Tripsy CLI version.",
+			Examples: []string{"tripsy --version", "tripsy version --json"},
+		},
 	}
 }
 
@@ -1983,6 +2012,7 @@ Commands:
   request           Make a raw API request
   commands          Print the command catalog
   doctor            Diagnose local CLI state
+  version           Print the CLI version
 
 Output:
   Human output is used in terminals. JSON envelopes are used with --json or when piped.
