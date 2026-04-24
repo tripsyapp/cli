@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/tripsyapp/tripsy-cli/internal/cli"
+	"github.com/tripsyapp/cli/internal/cli"
 )
 
 func main() {

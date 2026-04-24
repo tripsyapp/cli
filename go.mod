@@ -1,3 +1,3 @@
-module github.com/tripsyapp/tripsy-cli
+module github.com/tripsyapp/cli
 
 go 1.26

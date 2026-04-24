@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tripsyapp/tripsy-cli/internal/api"
-	"github.com/tripsyapp/tripsy-cli/internal/config"
-	"github.com/tripsyapp/tripsy-cli/internal/output"
-	"github.com/tripsyapp/tripsy-cli/internal/terminal"
+	"github.com/tripsyapp/cli/internal/api"
+	"github.com/tripsyapp/cli/internal/config"
+	"github.com/tripsyapp/cli/internal/output"
+	"github.com/tripsyapp/cli/internal/terminal"
 )
 
 type app struct {
