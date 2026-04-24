@@ -8,6 +8,7 @@ import (
 )
 
 func TestCommandsJSON(t *testing.T) {
+	t.Setenv("TRIPSY_AUTH_BACKEND", "file")
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"commands", "--json", "--config-dir", t.TempDir()}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -27,6 +28,7 @@ func TestCommandsJSON(t *testing.T) {
 }
 
 func TestRequestRequiresMethodAndPath(t *testing.T) {
+	t.Setenv("TRIPSY_AUTH_BACKEND", "file")
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"request", "GET", "--config-dir", t.TempDir()}, nil, &stdout, &stderr)
 	if code != 2 {

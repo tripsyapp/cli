@@ -69,7 +69,16 @@ Environment overrides:
 TRIPSY_TOKEN=...
 TRIPSY_API_BASE=https://api.tripsy.app
 TRIPSY_CONFIG_DIR=/custom/config
+TRIPSY_AUTH_BACKEND=auto|keychain|file
 ```
+
+Token storage:
+
+- `auto` is the default. It uses OS credential storage when available and falls back to file storage where no supported secure backend exists.
+- `keychain` requires an OS credential backend. On macOS this uses Keychain through the system `security` tool.
+- `file` stores the token in `credentials.json` with `0600` permissions and is intended for headless automation or compatibility.
+- Non-secret config such as `base_url` remains in `credentials.json`.
+- Legacy plaintext tokens are migrated out of `credentials.json` when a secure backend is available.
 
 Logout:
 

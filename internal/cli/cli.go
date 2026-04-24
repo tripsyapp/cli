@@ -1562,6 +1562,7 @@ func (a *app) doctor(ctx context.Context, args []string) error {
 	}
 	data := map[string]any{
 		"api_base":         a.client.BaseURL,
+		"auth_backend":     a.store.AuthBackendName(),
 		"config_dir":       a.store.Dir,
 		"credentials_path": a.store.CredentialsPath(),
 		"has_token":        strings.TrimSpace(a.client.Token) != "",
@@ -1631,7 +1632,7 @@ func mapString(value any) map[string]string {
 func doctorHuman(data map[string]any) string {
 	var b strings.Builder
 	b.WriteString("Tripsy CLI doctor\n")
-	for _, key := range []string{"api_base", "config_dir", "credentials_path", "has_token", "api_check"} {
+	for _, key := range []string{"api_base", "auth_backend", "config_dir", "credentials_path", "has_token", "api_check"} {
 		if value, ok := data[key]; ok {
 			b.WriteString("  ")
 			b.WriteString(key)
@@ -2019,8 +2020,10 @@ Output:
   Use --quiet for raw JSON data without the envelope.
 
 Configuration:
-  Credentials are stored in ~/.config/tripsy-cli/credentials.json.
+  Tokens are stored in macOS Keychain when available, with file fallback elsewhere.
+  Non-secret config is stored in ~/.config/tripsy-cli/credentials.json.
   TRIPSY_TOKEN and TRIPSY_API_BASE override stored values.
+  TRIPSY_AUTH_BACKEND controls token storage: auto, keychain, or file.
 `) + "\n"
 }
 

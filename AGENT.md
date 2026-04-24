@@ -2,6 +2,13 @@
 
 Use this file when an agent is creating or maintaining Tripsy itinerary data through the local `tripsy` CLI.
 
+## Authentication
+
+- Do not print stored tokens unless the user explicitly asks for token output.
+- Prefer the default `TRIPSY_AUTH_BACKEND=auto`; it uses OS credential storage when available.
+- Use `TRIPSY_AUTH_BACKEND=file` only for headless automation or compatibility.
+- Non-secret config is stored in `credentials.json`; tokens should be in the secure backend whenever one is available.
+
 ## Itinerary Shape
 
 - Set trip dates when planning a day-by-day itinerary.

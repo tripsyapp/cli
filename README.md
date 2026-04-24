@@ -8,7 +8,7 @@ The CLI follows the same practical shape as [Basecamp CLI](https://github.com/ba
 - JSON envelopes when piped or when `--json` is passed
 - breadcrumbs that suggest useful next commands
 - a command catalog for agents through `tripsy commands --json` and `tripsy <command> --help --agent`
-- local token storage under `~/.config/tripsy-cli`
+- secure token storage using the OS credential store when available, with explicit file fallback for automation
 
 ## Quick Start
 
@@ -59,7 +59,9 @@ Login with Tripsy credentials:
 tripsy auth login --username you@example.com
 ```
 
-Interactive password prompts hide typed input on terminals. For automation, pass a token through `TRIPSY_TOKEN` or `tripsy auth token set`.
+Interactive password prompts hide typed input on terminals. Tokens are stored in the OS credential store when available. On macOS, Tripsy uses Keychain by default.
+
+For automation, pass a token through `TRIPSY_TOKEN` or `tripsy auth token set`.
 
 Or configure an existing token:
 
@@ -67,10 +69,16 @@ Or configure an existing token:
 tripsy auth token set YOUR_TOKEN
 ```
 
-Credentials are stored at:
+Non-secret CLI config is stored at:
 
 ```text
 ~/.config/tripsy-cli/credentials.json
+```
+
+For compatibility, file token storage is still available with:
+
+```sh
+TRIPSY_AUTH_BACKEND=file
 ```
 
 Environment overrides:
@@ -79,6 +87,7 @@ Environment overrides:
 TRIPSY_TOKEN=...
 TRIPSY_API_BASE=https://api.tripsy.app
 TRIPSY_CONFIG_DIR=/custom/config/dir
+TRIPSY_AUTH_BACKEND=auto|keychain|file
 ```
 
 ## Examples
