@@ -47,7 +47,7 @@ tripsy.collaborators.list
 tripsy.raw_request
 ```
 
-MCP does not expose email, automation inbox, document, or upload capabilities yet. Use `tripsy.raw_request` only for supported public API routes without a typed MCP tool. The raw MCP tool accepts Tripsy API paths such as `/v1/me`, not arbitrary external URLs, and blocks email, inbox, document, and upload endpoints.
+Use `tripsy.raw_request` only for supported public API routes without a typed MCP tool. The raw MCP tool accepts Tripsy API paths such as `/v1/me`, not arbitrary external URLs.
 
 ## Discovery
 
@@ -150,7 +150,6 @@ List filters where supported:
 
 ```sh
 --fields id,name,starts_at
---fields-exclude documents,emails
 --updated-since 2026-03-17T00:00:00Z
 --deleted
 ```
@@ -327,7 +326,7 @@ List collaborators and pending invitations:
 tripsy collaborators --trip TRIP_ID --json
 ```
 
-Inspect `permissions` in the returned data before assuming a user can edit expenses or documents.
+Inspect `permissions` in the returned data before assuming a user can edit expenses or restricted resources.
 
 ## Email Addresses
 
@@ -374,61 +373,6 @@ tripsy inbox update EMAIL_ID --transportation-id TRANSPORTATION_ID --json
 ```
 
 Only one move target is applied. API priority is trip, activity, hosting, then transportation.
-
-## Documents
-
-Get a temporary document download URL:
-
-```sh
-tripsy documents get DOCUMENT_ID --json
-```
-
-Attach an external link to a trip:
-
-```sh
-tripsy documents attach --trip TRIP_ID --url https://example.com/reservation --title "Reservation" --json
-```
-
-Attach an external link to a subresource:
-
-```sh
-tripsy documents attach --trip TRIP_ID --parent activity:ACTIVITY_ID --url https://example.com/ticket --title "Ticket" --json
-tripsy documents attach --trip TRIP_ID --parent hosting:HOSTING_ID --url https://example.com/hotel --title "Hotel" --json
-tripsy documents attach --trip TRIP_ID --parent transportation:TRANSPORTATION_ID --url https://example.com/boarding-pass --title "Boarding pass" --json
-```
-
-Upload a private file and attach it:
-
-```sh
-tripsy documents upload ./boarding-pass.pdf --trip TRIP_ID --parent transportation:TRANSPORTATION_ID --title "Boarding pass" --json
-```
-
-Move or rename a document:
-
-```sh
-tripsy documents update DOCUMENT_ID --title "Updated ticket" --json
-tripsy documents update DOCUMENT_ID --activity-id ACTIVITY_ID --json
-tripsy documents update DOCUMENT_ID --trip-id TRIP_ID --json
-```
-
-Delete a document attachment:
-
-```sh
-tripsy documents delete --trip TRIP_ID DOCUMENT_ID --json
-tripsy documents delete --trip TRIP_ID --parent activity:ACTIVITY_ID DOCUMENT_ID --json
-```
-
-## Upload URLs
-
-Create a raw signed upload URL:
-
-```sh
-tripsy uploads create --purpose profile_photo --filename avatar.jpg --content-type image/jpeg --json
-tripsy uploads create --purpose trip_cover --filename cover.jpg --content-type image/jpeg --json
-tripsy uploads create --purpose document --parent-type trip --parent-id TRIP_ID --filename file.pdf --content-type application/pdf --json
-```
-
-Prefer `tripsy documents upload` for document files because it performs both the S3 upload and Tripsy attachment.
 
 ## Raw Requests
 

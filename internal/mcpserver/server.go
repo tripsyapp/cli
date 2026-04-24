@@ -82,7 +82,7 @@ func NewWithClient(client *api.Client, store *config.Store, version string) *mcp
 
 func (s *service) register(server *mcp.Server) {
 	addTool(server, "tripsy.status", "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
-	addTool(server, "tripsy.raw_request", "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available. Email, inbox, document, and upload endpoints are not exposed by this MCP server yet.", destructive(), s.rawRequest)
+	addTool(server, "tripsy.raw_request", "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
 
 	addTool(server, "tripsy.me.show", "Show Current Tripsy User", "Return the authenticated Tripsy profile.", readOnly(), s.meShow)
 	addTool(server, "tripsy.me.update", "Update Current Tripsy User", "Update current Tripsy profile fields such as name, timezone, language, or default currency.", idempotentWrite(), s.meUpdate)

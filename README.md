@@ -122,8 +122,6 @@ tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
 
 The MCP server exposes typed tools such as `tripsy.trips.create`, `tripsy.activities.create`, `tripsy.hostings.create`, `tripsy.transportations.create`, `tripsy.expenses.create`, `tripsy.collaborators.list`, and `tripsy.raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
-Email, automation inbox, document, and upload endpoints are intentionally not exposed through MCP yet. `tripsy.raw_request` blocks those endpoint families as well.
-
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
 ## Examples
@@ -136,7 +134,6 @@ tripsy activities list --trip 42
 tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --latitude 41.8902 --longitude 12.4922
 tripsy transportations create --trip 42 --name "Flight to Rome" --transportation-type airplane --departure-description JFK --arrival-description FCO
 tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR --date 2026-06-03T20:00:00Z
-tripsy documents upload boarding-pass.pdf --trip 42 --parent transportation:303
 tripsy request GET /v1/me --json
 ```
 
@@ -204,12 +201,10 @@ Friendly commands wrap the currently exposed public API:
 - auth/account: `auth`, `me`
 - trips: `trips`
 - trip subresources: `hostings`, `activities`, `transportations`, `expenses`, `collaborators`
-- email and automation inbox: `emails`, `inbox`
-- documents and uploads: `documents`, `uploads`
 
 Use `tripsy request METHOD PATH` for any exposed API route that does not yet have a tailored command.
 
-The MCP server currently covers account, trips, trip subresources, and collaborators. Email, automation inbox, document, and upload workflows remain CLI-only for now. Use `tripsy.raw_request` for supported API routes that do not yet have a dedicated MCP tool.
+The MCP server currently covers account, trips, trip subresources, collaborators, and supported raw requests.
 
 ## Publishing
 
