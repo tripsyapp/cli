@@ -88,11 +88,48 @@ tripsy me show
 tripsy trips list
 tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome
 tripsy activities list --trip 42
-tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type sightseeing --starts-at 2026-06-03T09:00:00Z
+tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --latitude 41.8902 --longitude 12.4922
 tripsy transportations create --trip 42 --name "Flight to Rome" --transportation-type airplane --departure-description JFK --arrival-description FCO
 tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR --date 2026-06-03T20:00:00Z
 tripsy documents upload boarding-pass.pdf --trip 42 --parent transportation:303
 tripsy request GET /v1/me --json
+```
+
+## Agent Itinerary Rules
+
+When building a Tripsy itinerary for a user or agent workflow:
+
+- Set trip dates whenever the itinerary needs day-by-day planning. Use trip date strings such as `2026-06-01`.
+- Choose a high-quality destination-specific Unsplash image for the trip cover when possible, and set it with `cover_image_url`.
+- Store the direct `images.unsplash.com/photo-...?...&ixlib=rb-...` URL, not the Unsplash page URL. The app will add its own display parameters.
+- Create one Tripsy item per actual stop, reservation, meal, tour, or activity. Do not combine a full day or multiple places into one activity.
+- Use exact ISO-8601 UTC datetimes for timed items, plus the local `timezone`, for example `2026-06-03T09:00:00Z`.
+- Set `latitude` and `longitude` for every location-based activity, hosting, and transportation endpoint so Tripsy's map is populated.
+- Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
+- Use `transportations` for flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar point-to-point movement.
+- Choose the most specific supported category slug for every activity.
+
+Activity category slugs:
+
+```text
+concert, fit, general, kids, museum, note, relax, restaurant, shopping,
+theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium,
+atm, bakery, bank, beach, brewery, campground, evCharger, fireStation,
+fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina,
+movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice,
+publicTransport, restroom, school, stadium, university, winery, zoo
+```
+
+Transportation category slugs:
+
+```text
+airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
+```
+
+Lodging category slug:
+
+```text
+lodging
 ```
 
 ## Output

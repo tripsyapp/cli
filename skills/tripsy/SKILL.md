@@ -14,6 +14,14 @@ The CLI talks to the public Tripsy API at `https://api.tripsy.app`. Public API p
 - Do not ask the user for passwords in chat. Ask them to run `tripsy auth login --username USERNAME` locally, or use `TRIPSY_TOKEN`.
 - Use exact ISO-8601 UTC datetimes for timed items, for example `2026-06-03T09:00:00Z`.
 - For trip dates, use date strings such as `2026-06-01`.
+- When creating a destination trip, choose a beautiful destination-specific Unsplash image and set it as `cover_image_url`.
+- Use the direct `images.unsplash.com/photo-...?...&ixlib=rb-...` URL for trip covers, not the Unsplash page URL. Tripsy will add the needed rendering parameters.
+- For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
+- Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
+- Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
+- Use the most specific supported category slug for `activity_type`; do not default to `general` or `tour` when a better category exists.
+- Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
+- Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For destructive commands, state what will be deleted before running the command when the user has not already been explicit.
 
 ## Discovery
@@ -158,7 +166,7 @@ tripsy trips show TRIP_ID --json
 Create a trip:
 
 ```sh
-tripsy trips create --name "Italy" --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --json
+tripsy trips create --name "Italy" --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-..." --json
 ```
 
 Update a trip:
@@ -176,17 +184,60 @@ tripsy trips delete TRIP_ID --json
 
 Common trip fields: `name`, `timezone`, `hidden`, `description`, `starts_at`, `ends_at`, `cover_gradient`, `cover_image_url`, `has_dates`, `number_of_days`, and `guest_invites`.
 
+Trip covers:
+
+- Prefer a destination-specific Unsplash image for leisure trips.
+- Use the direct `images.unsplash.com` image URL, including Unsplash metadata query parameters such as `ixid` and `ixlib`.
+- Do not add crop, width, quality, or format parameters unless the user explicitly asks; the Tripsy app derives the right display parameters.
+
 ## Itinerary Resources
 
 All trip subresources require `--trip TRIP_ID`.
+
+### Itinerary Planning
+
+Tripsy works best when the itinerary is structured as separate timed items:
+
+- Use one activity per place or experience, for example separate records for a museum, lunch, park, and evening event.
+- Avoid day-summary activities such as "Day 1: Museum, Lunch and Park" unless the user explicitly asks for a note-style summary.
+- Prefer start and end times for activities. Store timed values as UTC ISO-8601 strings and set the local `timezone`.
+- Include `address`, `latitude`, and `longitude` whenever a location is known.
+- Use `hostings` for hotels/lodging and `transportations` for transport segments instead of forcing them into activities.
+
+Activity category slugs:
+
+```text
+concert, fit, general, kids, museum, note, relax, restaurant, shopping,
+theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium,
+atm, bakery, bank, beach, brewery, campground, evCharger, fireStation,
+fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina,
+movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice,
+publicTransport, restroom, school, stadium, university, winery, zoo
+```
+
+Special category/resource handling:
+
+```text
+lodging
+```
+
+Use `lodging` for hotel/lodging category semantics, but create actual lodging records through `tripsy hostings`.
+
+Transportation category slugs:
+
+```text
+airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
+```
+
+Use these slugs with `transportation_type` on `tripsy transportations`.
 
 Activities:
 
 ```sh
 tripsy activities list --trip TRIP_ID --json
-tripsy activities list --trip TRIP_ID --activity-type sightseeing --json
+tripsy activities list --trip TRIP_ID --activity-type museum --json
 tripsy activities show --trip TRIP_ID ACTIVITY_ID --json
-tripsy activities create --trip TRIP_ID --name "Colosseum Tour" --activity-type sightseeing --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --json
+tripsy activities create --trip TRIP_ID --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --address "Piazza del Colosseo, Rome, Italy" --latitude 41.8902 --longitude 12.4922 --json
 tripsy activities update --trip TRIP_ID ACTIVITY_ID --notes "Bring tickets" --checked true --json
 tripsy activities delete --trip TRIP_ID ACTIVITY_ID --json
 ```
@@ -198,7 +249,7 @@ Hostings:
 ```sh
 tripsy hostings list --trip TRIP_ID --json
 tripsy hostings show --trip TRIP_ID HOSTING_ID --json
-tripsy hostings create --trip TRIP_ID --name "Hotel Eden" --starts-at 2026-06-01T14:00:00Z --ends-at 2026-06-05T11:00:00Z --timezone Europe/Rome --address "Via Ludovisi 49, Rome, Italy" --json
+tripsy hostings create --trip TRIP_ID --name "Hotel Eden" --starts-at 2026-06-01T14:00:00Z --ends-at 2026-06-05T11:00:00Z --timezone Europe/Rome --address "Via Ludovisi 49, Rome, Italy" --latitude 41.9081 --longitude 12.4882 --json
 tripsy hostings update --trip TRIP_ID HOSTING_ID --room-number 402 --json
 ```
 
@@ -210,7 +261,7 @@ Transportations:
 tripsy transportations list --trip TRIP_ID --json
 tripsy transportations list --trip TRIP_ID --transportation-type airplane --json
 tripsy transportations show --trip TRIP_ID TRANSPORTATION_ID --json
-tripsy transportations create --trip TRIP_ID --name "Flight to Rome" --transportation-type airplane --departure-description JFK --departure-at 2026-05-31T22:30:00Z --departure-timezone America/New_York --arrival-description FCO --arrival-at 2026-06-01T10:30:00Z --arrival-timezone Europe/Rome --json
+tripsy transportations create --trip TRIP_ID --name "Flight to Rome" --transportation-type airplane --departure-description JFK --departure-at 2026-05-31T22:30:00Z --departure-timezone America/New_York --departure-latitude 40.6413 --departure-longitude -73.7781 --arrival-description FCO --arrival-at 2026-06-01T10:30:00Z --arrival-timezone Europe/Rome --arrival-latitude 41.8003 --arrival-longitude 12.2389 --json
 ```
 
 Useful transportation fields: `transportation_type`, `departure_description`, `departure_at`, `departure_timezone`, `departure_address`, `departure_longitude`, `departure_latitude`, `arrival_description`, `arrival_at`, `arrival_timezone`, `arrival_address`, `arrival_longitude`, `arrival_latitude`, `company`, `seat_number`, `seat_class`, `transport_number`, `terminal`, `gate`, `price`, `currency`, and `assigned_users`.
