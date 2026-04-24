@@ -13,7 +13,7 @@ The CLI follows the same practical shape as [Basecamp CLI](https://github.com/ba
 ## Quick Start
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | bash
+curl -fsSL https://tripsy.app/install_cli | bash
 ```
 
 This installs the latest GitHub release into `~/.local/bin`, verifies the release checksum, and adds that directory to your shell PATH when needed.
@@ -29,13 +29,13 @@ go install github.com/tripsyapp/cli/cmd/tripsy@latest
 Install a specific release with the script:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | TRIPSY_VERSION=1.2.3 bash
+curl -fsSL https://tripsy.app/install_cli | TRIPSY_VERSION=1.2.3 bash
 ```
 
 Install into a custom directory:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | TRIPSY_BIN_DIR=/usr/local/bin bash
+curl -fsSL https://tripsy.app/install_cli | TRIPSY_BIN_DIR=/usr/local/bin bash
 ```
 
 Build from a checkout:
