@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# install.sh - Install the Tripsy CLI.
+# install.sh - Install the Tripsy CLI and MCP server.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | bash
+#   curl -fsSL https://tripsy.app/install_cli | bash
 #
 # Options via environment:
 #   TRIPSY_BIN_DIR   Where to install the binary. Default: ~/.local/bin
@@ -103,14 +103,16 @@ download_binary() {
   local version="$1"
   local platform="$2"
   local tmp_dir="$3"
-  local ext archive_name url binary_name
+  local ext archive_name url binary_name mcp_binary_name
 
   if [[ "$platform" == windows_* ]]; then
     ext="zip"
     binary_name="tripsy.exe"
+    mcp_binary_name="tripsy-mcp.exe"
   else
     ext="tar.gz"
     binary_name="tripsy"
+    mcp_binary_name="tripsy-mcp"
   fi
 
   archive_name="tripsy_${version}_${platform}.${ext}"
@@ -130,12 +132,18 @@ download_binary() {
     tar -xzf "${tmp_dir}/${archive_name}" -C "$tmp_dir"
   fi
 
-  [[ -f "${tmp_dir}/${binary_name}" ]] || error "Binary not found in archive"
-
   mkdir -p "$BIN_DIR"
-  mv "${tmp_dir}/${binary_name}" "$BIN_DIR/"
-  chmod +x "$BIN_DIR/$binary_name"
-  info "Installed tripsy to $BIN_DIR/$binary_name"
+  [[ -f "${tmp_dir}/${binary_name}" ]] || error "Binary not found in archive: ${binary_name}"
+
+  for name in "$binary_name" "$mcp_binary_name"; do
+    if [[ ! -f "${tmp_dir}/${name}" ]]; then
+      info "${name} not included in this release; skipping"
+      continue
+    fi
+    mv "${tmp_dir}/${name}" "$BIN_DIR/"
+    chmod +x "$BIN_DIR/$name"
+    info "Installed ${name} to $BIN_DIR/$name"
+  done
 }
 
 setup_path() {
@@ -169,16 +177,24 @@ setup_path() {
 verify_install() {
   local platform="$1"
   local binary_name="tripsy"
+  local mcp_binary_name="tripsy-mcp"
   local installed_version
 
   if [[ "$platform" == windows_* ]]; then
     binary_name="tripsy.exe"
+    mcp_binary_name="tripsy-mcp.exe"
   fi
 
   installed_version=$("$BIN_DIR/$binary_name" --version 2>/dev/null) \
     || error "Installation failed: tripsy did not run"
 
   info "$(green "$installed_version")"
+
+  if [[ -x "$BIN_DIR/$mcp_binary_name" ]]; then
+    installed_version=$("$BIN_DIR/$mcp_binary_name" --version 2>/dev/null) \
+      || error "Installation failed: tripsy-mcp did not run"
+    info "$(green "$installed_version")"
+  fi
 }
 
 main() {
@@ -210,6 +226,7 @@ main() {
   echo "Next steps:"
   echo "  $(bold "tripsy auth login --username you@example.com")"
   echo "  $(bold "tripsy doctor")"
+  echo "  $(bold "tripsy-mcp --version")"
   echo ""
 }
 

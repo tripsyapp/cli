@@ -7,6 +7,7 @@ LDFLAGS := -s -w -X github.com/tripsyapp/cli/internal/cli.Version=$(VERSION) -X 
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/tripsy ./cmd/tripsy
+	go build -ldflags "$(LDFLAGS)" -o bin/tripsy-mcp ./cmd/tripsy-mcp
 
 test:
 	go test ./...

@@ -51,16 +51,19 @@ jobs:
             arch="${platform#*/}"
             name="tripsy_${version}_${os}_${arch}"
             outdir="dist/${name}"
-            binary="tripsy"
+            cli_binary="tripsy"
+            mcp_binary="tripsy-mcp"
             archive="${name}.tar.gz"
 
             if [[ "$os" == "windows" ]]; then
-              binary="tripsy.exe"
+              cli_binary="tripsy.exe"
+              mcp_binary="tripsy-mcp.exe"
               archive="${name}.zip"
             fi
 
             mkdir -p "$outdir"
-            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -ldflags "$ldflags" -o "${outdir}/${binary}" ./cmd/tripsy
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -ldflags "$ldflags" -o "${outdir}/${cli_binary}" ./cmd/tripsy
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -ldflags "$ldflags" -o "${outdir}/${mcp_binary}" ./cmd/tripsy-mcp
             cp README.md LICENSE "$outdir/"
 
             if [[ "$os" == "windows" ]]; then

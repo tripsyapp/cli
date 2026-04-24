@@ -1,6 +1,6 @@
 # Tripsy CLI
 
-`tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`.
+`tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`. The project also ships `tripsy-mcp`, a Model Context Protocol server that exposes typed tools for core Tripsy account and trip workflows.
 
 The CLI follows the same practical shape as [Basecamp CLI](https://github.com/basecamp/basecamp-cli):
 
@@ -16,7 +16,7 @@ The CLI follows the same practical shape as [Basecamp CLI](https://github.com/ba
 curl -fsSL https://tripsy.app/install_cli | bash
 ```
 
-This installs the latest GitHub release into `~/.local/bin`, verifies the release checksum, and adds that directory to your shell PATH when needed.
+This installs the latest GitHub release into `~/.local/bin`, verifies the release checksum, installs `tripsy` and `tripsy-mcp`, and adds that directory to your shell PATH when needed.
 
 ## Other Installation Methods
 
@@ -24,6 +24,7 @@ Install the latest published version with Go:
 
 ```sh
 go install github.com/tripsyapp/cli/cmd/tripsy@latest
+go install github.com/tripsyapp/cli/cmd/tripsy-mcp@latest
 ```
 
 Install a specific release with the script:
@@ -43,6 +44,7 @@ Build from a checkout:
 ```sh
 make build
 bin/tripsy --help
+bin/tripsy-mcp --version
 ```
 
 For development:
@@ -89,6 +91,40 @@ TRIPSY_API_BASE=https://api.tripsy.app
 TRIPSY_CONFIG_DIR=/custom/config/dir
 TRIPSY_AUTH_BACKEND=auto|keychain|file
 ```
+
+## MCP Server
+
+Use `tripsy-mcp` when an agent or app supports MCP. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
+
+Run the default stdio server:
+
+```sh
+tripsy-mcp
+```
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "tripsy": {
+      "command": "tripsy-mcp"
+    }
+  }
+}
+```
+
+Run a local streamable HTTP server instead:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
+```
+
+The MCP server exposes typed tools such as `tripsy.trips.create`, `tripsy.activities.create`, `tripsy.hostings.create`, `tripsy.transportations.create`, `tripsy.expenses.create`, `tripsy.collaborators.list`, and `tripsy.raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
+
+Email, automation inbox, document, and upload endpoints are intentionally not exposed through MCP yet. `tripsy.raw_request` blocks those endpoint families as well.
+
+Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
 ## Examples
 
@@ -173,6 +209,8 @@ Friendly commands wrap the currently exposed public API:
 
 Use `tripsy request METHOD PATH` for any exposed API route that does not yet have a tailored command.
 
+The MCP server currently covers account, trips, trip subresources, and collaborators. Email, automation inbox, document, and upload workflows remain CLI-only for now. Use `tripsy.raw_request` for supported API routes that do not yet have a dedicated MCP tool.
+
 ## Publishing
 
 This module is published as:
@@ -192,4 +230,4 @@ tripsy_1.2.3_windows_amd64.zip
 checksums.txt
 ```
 
-The release workflow creates these assets when a `vX.Y.Z` tag is pushed.
+Each platform archive contains `tripsy`, `tripsy-mcp`, `README.md`, and `LICENSE`. The release workflow creates these assets when a `vX.Y.Z` tag is pushed.

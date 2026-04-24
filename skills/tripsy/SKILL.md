@@ -1,12 +1,18 @@
+---
+name: tripsy
+description: Use when an agent needs to inspect, create, update, or organize Tripsy data through the local tripsy CLI or tripsy-mcp server.
+---
+
 # Tripsy CLI Agent Skill
 
-Use this skill when an agent needs to inspect, create, update, or organize Tripsy data through the local `tripsy` CLI.
+Use this skill when an agent needs to inspect, create, update, or organize Tripsy data through the local `tripsy` CLI or `tripsy-mcp` server.
 
-The CLI talks to the public Tripsy API at `https://api.tripsy.app`. Public API paths do not include an `/api` prefix.
+The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`. Public API paths do not include an `/api` prefix.
 
 ## Operating Rules
 
-- Prefer friendly commands over `tripsy request` when a wrapper exists.
+- Prefer `tripsy-mcp` typed tools when the current client supports MCP.
+- Prefer friendly CLI commands over `tripsy request` when a wrapper exists.
 - Use `--json` for agent-readable output. Use `--quiet` only when raw `data` is needed without the envelope.
 - Read the `ok`, `summary`, `data`, and `breadcrumbs` fields from JSON envelopes.
 - Follow `breadcrumbs` when navigating related resources.
@@ -23,6 +29,25 @@ The CLI talks to the public Tripsy API at `https://api.tripsy.app`. Public API p
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For destructive commands, state what will be deleted before running the command when the user has not already been explicit.
+
+## MCP Server
+
+Use MCP when available because tools expose schemas, descriptions, safety annotations, and structured results without requiring shell command composition.
+
+Common tool names:
+
+```text
+tripsy.status
+tripsy.trips.create
+tripsy.activities.create
+tripsy.hostings.create
+tripsy.transportations.create
+tripsy.expenses.create
+tripsy.collaborators.list
+tripsy.raw_request
+```
+
+MCP does not expose email, automation inbox, document, or upload capabilities yet. Use `tripsy.raw_request` only for supported public API routes without a typed MCP tool. The raw MCP tool accepts Tripsy API paths such as `/v1/me`, not arbitrary external URLs, and blocks email, inbox, document, and upload endpoints.
 
 ## Discovery
 
@@ -422,25 +447,27 @@ For request bodies, use `--data` with a JSON object or repeated `--set key=value
 Install with the release script:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | bash
+curl -fsSL https://tripsy.app/install_cli | bash
 ```
 
 Install a specific version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | TRIPSY_VERSION=1.2.3 bash
+curl -fsSL https://tripsy.app/install_cli | TRIPSY_VERSION=1.2.3 bash
 ```
 
 Install from source with Go:
 
 ```sh
 go install github.com/tripsyapp/cli/cmd/tripsy@latest
+go install github.com/tripsyapp/cli/cmd/tripsy-mcp@latest
 ```
 
 Verify:
 
 ```sh
 tripsy --version
+tripsy-mcp --version
 tripsy doctor --json
 ```
 
