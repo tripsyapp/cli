@@ -2,7 +2,7 @@
 
 `tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`.
 
-The CLI follows the same practical shape as Basecamp CLI:
+The CLI follows the same practical shape as [Basecamp CLI](https://github.com/basecamp/basecamp-cli):
 
 - usable human output in a terminal
 - JSON envelopes when piped or when `--json` is passed
@@ -10,15 +10,35 @@ The CLI follows the same practical shape as Basecamp CLI:
 - a command catalog for agents through `tripsy commands --json` and `tripsy <command> --help --agent`
 - local token storage under `~/.config/tripsy-cli`
 
-## Build
+## Quick Start
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | bash
+```
+
+This installs the latest GitHub release into `~/.local/bin`, verifies the release checksum, and adds that directory to your shell PATH when needed.
+
+## Other Installation Methods
 
 Install the latest published version with Go:
 
 ```sh
-go install github.com/tripsyapp/tripsy-cli/cmd/tripsy@latest
+go install github.com/tripsyapp/cli/cmd/tripsy@latest
 ```
 
-Or build from a checkout:
+Install a specific release with the script:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | TRIPSY_VERSION=1.2.3 bash
+```
+
+Install into a custom directory:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tripsyapp/cli/main/scripts/install.sh | TRIPSY_BIN_DIR=/usr/local/bin bash
+```
+
+Build from a checkout:
 
 ```sh
 make build
@@ -112,7 +132,18 @@ Use `tripsy request METHOD PATH` for any exposed API route that does not yet hav
 This module is published as:
 
 ```text
-github.com/tripsyapp/tripsy-cli
+github.com/tripsyapp/cli
 ```
 
 If the GitHub repository path changes, update `go.mod` and the `go install` command above before tagging a release.
+
+The install script expects GitHub release assets named like:
+
+```text
+tripsy_1.2.3_darwin_arm64.tar.gz
+tripsy_1.2.3_linux_amd64.tar.gz
+tripsy_1.2.3_windows_amd64.zip
+checksums.txt
+```
+
+The release workflow creates these assets when a `vX.Y.Z` tag is pushed.
