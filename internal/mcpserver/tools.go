@@ -215,7 +215,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 	if spec.FilterHint != "" {
 		filterText = " " + spec.FilterHint
 	}
-	addTool(server, "tripsy."+spec.Prefix+".list", "List "+pluralTitle, spec.Description+" Supports common list filters."+filterText, readOnly(), func(ctx context.Context, req *mcp.CallToolRequest, in subresourceListInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "list"), "List "+pluralTitle, spec.Description+" Supports common list filters."+filterText, readOnly(), func(ctx context.Context, req *mcp.CallToolRequest, in subresourceListInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}
@@ -234,7 +234,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		}
 		return toolOutput(s.do(ctx, "GET", fmt.Sprintf(spec.ListPath, in.TripID), query, nil, pluralTitle))
 	})
-	addTool(server, "tripsy."+spec.Prefix+".show", "Show "+spec.Title, "Fetch one Tripsy "+strings.ToLower(spec.Title)+" by id.", readOnly(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "show"), "Show "+spec.Title, "Fetch one Tripsy "+strings.ToLower(spec.Title)+" by id.", readOnly(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}
@@ -243,7 +243,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		}
 		return toolOutput(s.do(ctx, "GET", fmt.Sprintf(spec.DetailPath, in.TripID, in.ID), nil, nil, spec.Title+" "+in.ID))
 	})
-	addTool(server, "tripsy."+spec.Prefix+".create", "Create "+spec.Title, "Create a Tripsy "+strings.ToLower(spec.Title)+". "+spec.CreateAdvice, additive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceDataInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "create"), "Create "+spec.Title, "Create a Tripsy "+strings.ToLower(spec.Title)+". "+spec.CreateAdvice, additive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceDataInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}
@@ -252,7 +252,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		}
 		return toolOutput(s.do(ctx, "POST", fmt.Sprintf(spec.ListPath, in.TripID), nil, in.Data, spec.Title+" created"))
 	})
-	addTool(server, "tripsy."+spec.Prefix+".update", "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id.", idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "update"), "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id.", idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}
@@ -264,7 +264,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		}
 		return toolOutput(s.do(ctx, "PATCH", fmt.Sprintf(spec.DetailPath, in.TripID, in.ID), nil, in.Data, spec.Title+" updated"))
 	})
-	addTool(server, "tripsy."+spec.Prefix+".delete", "Delete "+spec.Title, "Delete a Tripsy "+strings.ToLower(spec.Title)+" by id.", destructive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "delete"), "Delete "+spec.Title, "Delete a Tripsy "+strings.ToLower(spec.Title)+" by id.", destructive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}

@@ -120,7 +120,7 @@ Run a local streamable HTTP server instead:
 tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
 ```
 
-The MCP server exposes typed tools such as `tripsy.trips.create`, `tripsy.activities.create`, `tripsy.hostings.create`, `tripsy.transportations.create`, `tripsy.expenses.create`, `tripsy.collaborators.list`, and `tripsy.raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
+The MCP server exposes typed tools such as `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 

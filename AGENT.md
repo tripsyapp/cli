@@ -6,8 +6,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 
 - Prefer `tripsy-mcp` when the client supports MCP. It exposes typed tools, structured results, safety annotations, and the same auth/config as the CLI.
 - Use `tripsy` for direct terminal workflows, scripts, or when the current client cannot connect to MCP servers.
-- MCP tool names use the `tripsy.<resource>.<action>` shape, for example `tripsy.trips.create`, `tripsy.activities.create`, and `tripsy.collaborators.list`.
-- Use `tripsy.raw_request` only when no typed MCP tool covers a supported public Tripsy API route.
+- MCP tool names use the `tripsy_<resource>_<action>` shape, for example `tripsy_trips_create`, `tripsy_activities_create`, and `tripsy_collaborators_list`.
+- Use `tripsy_raw_request` only when no typed MCP tool covers a supported public Tripsy API route.
 
 ## Authentication
 

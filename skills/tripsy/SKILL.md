@@ -37,17 +37,17 @@ Use MCP when available because tools expose schemas, descriptions, safety annota
 Common tool names:
 
 ```text
-tripsy.status
-tripsy.trips.create
-tripsy.activities.create
-tripsy.hostings.create
-tripsy.transportations.create
-tripsy.expenses.create
-tripsy.collaborators.list
-tripsy.raw_request
+tripsy_status
+tripsy_trips_create
+tripsy_activities_create
+tripsy_hostings_create
+tripsy_transportations_create
+tripsy_expenses_create
+tripsy_collaborators_list
+tripsy_raw_request
 ```
 
-Use `tripsy.raw_request` only for supported public API routes without a typed MCP tool. The raw MCP tool accepts Tripsy API paths such as `/v1/me`, not arbitrary external URLs.
+Use `tripsy_raw_request` only for supported public API routes without a typed MCP tool. The raw MCP tool accepts Tripsy API paths such as `/v1/me`, not arbitrary external URLs.
 
 ## Discovery
 

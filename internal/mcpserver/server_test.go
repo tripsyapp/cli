@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -26,11 +27,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	for _, name := range []string{
-		"tripsy.status",
-		"tripsy.trips.create",
-		"tripsy.activities.create",
-		"tripsy.collaborators.list",
-		"tripsy.raw_request",
+		"tripsy_status",
+		"tripsy_trips_create",
+		"tripsy_activities_create",
+		"tripsy_collaborators_list",
+		"tripsy_raw_request",
 	} {
 		if findTool(res.Tools, name) == nil {
 			t.Fatalf("tool %q was not registered", name)
@@ -38,20 +39,27 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	for _, name := range []string{
-		"tripsy.emails.list",
-		"tripsy.inbox.list",
-		"tripsy.documents.attach",
-		"tripsy.documents.upload",
-		"tripsy.uploads.create",
+		"tripsy_emails_list",
+		"tripsy_inbox_list",
+		"tripsy_documents_attach",
+		"tripsy_documents_upload",
+		"tripsy_uploads_create",
 	} {
 		if findTool(res.Tools, name) != nil {
 			t.Fatalf("tool %q should not be registered yet", name)
 		}
 	}
 
-	activitiesList := findTool(res.Tools, "tripsy.activities.list")
+	allowedToolName := regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	for _, tool := range res.Tools {
+		if !allowedToolName.MatchString(tool.Name) {
+			t.Fatalf("tool name %q contains characters rejected by common MCP clients", tool.Name)
+		}
+	}
+
+	activitiesList := findTool(res.Tools, "tripsy_activities_list")
 	if activitiesList == nil {
-		t.Fatal("tripsy.activities.list was not registered")
+		t.Fatal("tripsy_activities_list was not registered")
 	}
 	if activitiesList.Title != "List Activities" {
 		t.Fatalf("activities list title = %q, want List Activities", activitiesList.Title)
@@ -60,12 +68,12 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		t.Fatal("activities list should be marked read-only")
 	}
 
-	tripsCreate := findTool(res.Tools, "tripsy.trips.create")
+	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
 	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "images.unsplash.com") {
 		t.Fatalf("trips create description should mention Unsplash cover_image_url guidance: %q", tripsCreate.Description)
 	}
 
-	activitiesCreate := findTool(res.Tools, "tripsy.activities.create")
+	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
 	if !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") {
 		t.Fatalf("activities create description should mention category and coordinates guidance: %q", activitiesCreate.Description)
 	}
@@ -103,7 +111,7 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	session, cleanup := connectTestSession(t, "test-token", handler)
 	defer cleanup()
 
-	res := callTool(t, session, "tripsy.trips.create", map[string]any{
+	res := callTool(t, session, "tripsy_trips_create", map[string]any{
 		"data": map[string]any{
 			"name":            "Copenhagen",
 			"timezone":        "Europe/Copenhagen",
@@ -163,7 +171,7 @@ func TestActivitiesListSendsFilters(t *testing.T) {
 	session, cleanup := connectTestSession(t, "test-token", handler)
 	defer cleanup()
 
-	res := callTool(t, session, "tripsy.activities.list", map[string]any{
+	res := callTool(t, session, "tripsy_activities_list", map[string]any{
 		"trip_id":        "42",
 		"fields":         []string{"name", "id"},
 		"fields_exclude": []string{"documents"},
@@ -191,7 +199,7 @@ func TestToolsRequireTokenBeforeCallingAPI(t *testing.T) {
 	}))
 	defer cleanup()
 
-	res := callTool(t, session, "tripsy.trips.list", map[string]any{})
+	res := callTool(t, session, "tripsy_trips_list", map[string]any{})
 	if !res.IsError {
 		t.Fatalf("expected tool error for missing token, got: %s", toolText(res))
 	}
@@ -211,7 +219,7 @@ func TestRawRequestRejectsExternalURL(t *testing.T) {
 	}))
 	defer cleanup()
 
-	res := callTool(t, session, "tripsy.raw_request", map[string]any{
+	res := callTool(t, session, "tripsy_raw_request", map[string]any{
 		"method": "GET",
 		"path":   "https://example.com/v1/me",
 	})
@@ -243,7 +251,7 @@ func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
 		{path: "/v1/storage/uploads", want: "upload endpoints"},
 	} {
 		t.Run(tt.path, func(t *testing.T) {
-			res := callTool(t, session, "tripsy.raw_request", map[string]any{
+			res := callTool(t, session, "tripsy_raw_request", map[string]any{
 				"method": "GET",
 				"path":   tt.path,
 			})

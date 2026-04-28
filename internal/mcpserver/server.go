@@ -81,17 +81,17 @@ func NewWithClient(client *api.Client, store *config.Store, version string) *mcp
 }
 
 func (s *service) register(server *mcp.Server) {
-	addTool(server, "tripsy.status", "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
-	addTool(server, "tripsy.raw_request", "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
+	addTool(server, toolName("tripsy", "status"), "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
+	addTool(server, toolName("tripsy", "raw_request"), "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
 
-	addTool(server, "tripsy.me.show", "Show Current Tripsy User", "Return the authenticated Tripsy profile.", readOnly(), s.meShow)
-	addTool(server, "tripsy.me.update", "Update Current Tripsy User", "Update current Tripsy profile fields such as name, timezone, language, or default currency.", idempotentWrite(), s.meUpdate)
+	addTool(server, toolName("tripsy", "me", "show"), "Show Current Tripsy User", "Return the authenticated Tripsy profile.", readOnly(), s.meShow)
+	addTool(server, toolName("tripsy", "me", "update"), "Update Current Tripsy User", "Update current Tripsy profile fields such as name, timezone, language, or default currency.", idempotentWrite(), s.meUpdate)
 
-	addTool(server, "tripsy.trips.list", "List Trips", "List Tripsy trips. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsList)
-	addTool(server, "tripsy.trips.show", "Show Trip", "Fetch one Tripsy trip by id.", readOnly(), s.tripShow)
-	addTool(server, "tripsy.trips.create", "Create Trip", "Create a Tripsy trip. For destination trips, set cover_image_url to a direct images.unsplash.com URL when available.", additive(), s.tripCreate)
-	addTool(server, "tripsy.trips.update", "Update Trip", "Update a Tripsy trip by id.", idempotentWrite(), s.tripUpdate)
-	addTool(server, "tripsy.trips.delete", "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
+	addTool(server, toolName("tripsy", "trips", "list"), "List Trips", "List Tripsy trips. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsList)
+	addTool(server, toolName("tripsy", "trips", "show"), "Show Trip", "Fetch one Tripsy trip by id.", readOnly(), s.tripShow)
+	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For destination trips, set cover_image_url to a direct images.unsplash.com URL when available.", additive(), s.tripCreate)
+	addTool(server, toolName("tripsy", "trips", "update"), "Update Trip", "Update a Tripsy trip by id.", idempotentWrite(), s.tripUpdate)
+	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
 
 	s.registerResource(server, resourceSpec{
 		Prefix:       "activities",
@@ -136,7 +136,11 @@ func (s *service) register(server *mcp.Server) {
 		CreateAdvice: "Use title, price, currency, and date for expense records.",
 	})
 
-	addTool(server, "tripsy.collaborators.list", "List Trip Collaborators", "List collaborators and pending invitations for a trip.", readOnly(), s.collaboratorsList)
+	addTool(server, toolName("tripsy", "collaborators", "list"), "List Trip Collaborators", "List collaborators and pending invitations for a trip.", readOnly(), s.collaboratorsList)
+}
+
+func toolName(parts ...string) string {
+	return strings.Join(parts, "_")
 }
 
 func addTool[In, Out any](server *mcp.Server, name, title, description string, annotations *mcp.ToolAnnotations, handler mcp.ToolHandlerFor[In, Out]) {
