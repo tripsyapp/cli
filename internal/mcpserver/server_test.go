@@ -89,6 +89,9 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 		if r.URL.Path != "/v1/trips" {
 			t.Errorf("path = %s, want /v1/trips", r.URL.Path)
 		}
+		if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
+		}
 		if got := r.Header.Get("Authorization"); got != "Token test-token" {
 			t.Errorf("Authorization = %q, want Token test-token", got)
 		}
@@ -152,8 +155,8 @@ func TestActivitiesListSendsFilters(t *testing.T) {
 		if got := query.Get("fields"); got != "id,name" {
 			t.Errorf("fields = %q, want id,name", got)
 		}
-		if got := query.Get("fields!"); got != "documents" {
-			t.Errorf("fields! = %q, want documents", got)
+		if got := query.Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
 		}
 		if got := query.Get("activityType"); got != "museum" {
 			t.Errorf("activityType = %q, want museum", got)

@@ -435,6 +435,43 @@ func commonListQuery(fs *flagSet) url.Values {
 	return query
 }
 
+var defaultTripDataFieldsExclude = []string{"documents", "emails"}
+
+func tripDataQuery(query url.Values) url.Values {
+	return queryWithFieldsExcluded(query, defaultTripDataFieldsExclude...)
+}
+
+func queryWithFieldsExcluded(query url.Values, fields ...string) url.Values {
+	if len(fields) == 0 {
+		return query
+	}
+	if query == nil {
+		query = url.Values{}
+	}
+	values := append([]string{}, query["fields!"]...)
+	values = append(values, fields...)
+	if joined := joinQueryFields(values); joined != "" {
+		query.Set("fields!", joined)
+	}
+	return query
+}
+
+func joinQueryFields(fields []string) string {
+	normalized := make([]string, 0, len(fields))
+	seen := map[string]bool{}
+	for _, field := range fields {
+		for _, part := range strings.Split(field, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" && !seen[part] {
+				seen[part] = true
+				normalized = append(normalized, part)
+			}
+		}
+	}
+	sort.Strings(normalized)
+	return strings.Join(normalized, ",")
+}
+
 func requireToken(client *api.Client) error {
 	if strings.TrimSpace(client.Token) == "" {
 		return errors.New("not authenticated; run `tripsy auth login` or set TRIPSY_TOKEN")
@@ -860,7 +897,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		query := commonListQuery(fs)
+		query := tripDataQuery(commonListQuery(fs))
 		resp, err := a.client.Request(ctx, "GET", "/v1/trips", query, nil)
 		if err != nil {
 			return err
@@ -885,7 +922,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+id, nil, nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+id, tripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -910,7 +947,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if len(payload) == 0 {
 			return usageError("trips create requires --name or --data")
 		}
-		resp, err := a.client.Request(ctx, "POST", "/v1/trips", nil, payload)
+		resp, err := a.client.Request(ctx, "POST", "/v1/trips", tripDataQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -939,7 +976,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if len(payload) == 0 {
 			return usageError("trips update requires --set key=value or a supported field flag")
 		}
-		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+id, nil, payload)
+		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+id, tripDataQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -953,7 +990,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+id, nil, nil)
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+id, tripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -974,6 +1011,7 @@ type resourceSpec struct {
 	Fields       []string
 	DetailFields []string
 	Columns      []string
+	ExcludeData  bool
 }
 
 var hostingResource = resourceSpec{
@@ -985,6 +1023,7 @@ var hostingResource = resourceSpec{
 	Fields:       hostingFields,
 	DetailFields: hostingDetailFields,
 	Columns:      []string{"id", "name", "starts_at", "ends_at", "address"},
+	ExcludeData:  true,
 }
 
 var activityResource = resourceSpec{
@@ -998,6 +1037,7 @@ var activityResource = resourceSpec{
 	Fields:       activityFields,
 	DetailFields: activityDetailFields,
 	Columns:      []string{"id", "name", "activity_type", "starts_at", "ends_at"},
+	ExcludeData:  true,
 }
 
 var transportationResource = resourceSpec{
@@ -1011,6 +1051,7 @@ var transportationResource = resourceSpec{
 	Fields:       transportationFields,
 	DetailFields: transportationDetailFields,
 	Columns:      []string{"id", "name", "transportation_type", "departure_at", "arrival_at"},
+	ExcludeData:  true,
 }
 
 var expenseResource = resourceSpec{
@@ -1046,6 +1087,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if spec.FilterFlag != "" && fs.String(spec.FilterFlag) != "" {
 			query.Set(spec.FilterParam, fs.String(spec.FilterFlag))
 		}
+		query = spec.responseQuery(query)
 		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.ListPath, tripID), query, nil)
 		if err != nil {
 			return err
@@ -1072,7 +1114,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.DetailPath, tripID, id), nil, nil)
+		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1100,7 +1142,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if len(payload) == 0 {
 			return usageError("%s create requires --data or field flags", spec.Plural)
 		}
-		resp, err := a.client.Request(ctx, "POST", fmt.Sprintf(spec.ListPath, tripID), nil, payload)
+		resp, err := a.client.Request(ctx, "POST", fmt.Sprintf(spec.ListPath, tripID), spec.responseQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1133,7 +1175,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if len(payload) == 0 {
 			return usageError("%s update requires --set key=value or field flags", spec.Plural)
 		}
-		resp, err := a.client.Request(ctx, "PATCH", fmt.Sprintf(spec.DetailPath, tripID, id), nil, payload)
+		resp, err := a.client.Request(ctx, "PATCH", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1151,7 +1193,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", fmt.Sprintf(spec.DetailPath, tripID, id), nil, nil)
+		resp, err := a.client.Request(ctx, "DELETE", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1159,6 +1201,13 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 	default:
 		return usageError("unknown %s subcommand %q", spec.Plural, args[0])
 	}
+}
+
+func (spec resourceSpec) responseQuery(query url.Values) url.Values {
+	if !spec.ExcludeData {
+		return query
+	}
+	return tripDataQuery(query)
 }
 
 func positionalID(fs *flagSet, message string) (string, error) {

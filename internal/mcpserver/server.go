@@ -104,6 +104,7 @@ func (s *service) register(server *mcp.Server) {
 		FilterHint:   activityCategoryHint,
 		Description:  "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
 		CreateAdvice: "Set activity_type to the most specific supported slug, and include latitude/longitude for map-ready location items.",
+		ExcludeData:  true,
 	})
 	s.registerResource(server, resourceSpec{
 		Prefix:       "hostings",
@@ -113,6 +114,7 @@ func (s *service) register(server *mcp.Server) {
 		DetailPath:   "/v1/trip/%s/hosting/%s",
 		Description:  "Hotel and lodging plans.",
 		CreateAdvice: "Use hostings for hotels and lodging rather than activities. Include address and latitude/longitude when known.",
+		ExcludeData:  true,
 	})
 	s.registerResource(server, resourceSpec{
 		Prefix:       "transportations",
@@ -125,6 +127,7 @@ func (s *service) register(server *mcp.Server) {
 		FilterHint:   transportationCategoryHint,
 		Description:  "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
 		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known.",
+		ExcludeData:  true,
 	})
 	s.registerResource(server, resourceSpec{
 		Prefix:       "expenses",
