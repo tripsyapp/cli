@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tripsyapp/cli/internal/api"
 	"github.com/tripsyapp/cli/internal/config"
@@ -37,6 +40,8 @@ type service struct {
 	client *api.Client
 	store  *config.Store
 }
+
+const tokenInfoTripsyTokenKey = "tripsy_token"
 
 func New(opts Options) (*mcp.Server, RuntimeInfo, error) {
 	store := config.NewStore(opts.ConfigDir)
@@ -155,11 +160,12 @@ func addTool[In, Out any](server *mcp.Server, name, title, description string, a
 	}, handler)
 }
 
-func (s *service) do(ctx context.Context, method, path string, query url.Values, body any, summary string) (any, error) {
-	if err := s.requireToken(); err != nil {
+func (s *service) do(ctx context.Context, req *mcp.CallToolRequest, method, path string, query url.Values, body any, summary string) (any, error) {
+	client := s.clientForRequest(req)
+	if err := requireToken(client); err != nil {
 		return nil, err
 	}
-	resp, err := s.client.Request(ctx, method, path, query, body)
+	resp, err := client.Request(ctx, method, path, query, body)
 	if err != nil {
 		return nil, err
 	}
@@ -169,11 +175,72 @@ func (s *service) do(ctx context.Context, method, path string, query url.Values,
 	return envelope(resp, summary), nil
 }
 
-func (s *service) requireToken() error {
-	if s == nil || s.client == nil || strings.TrimSpace(s.client.Token) == "" {
+func (s *service) clientForRequest(req *mcp.CallToolRequest) *api.Client {
+	if s == nil {
+		return nil
+	}
+	if req == nil || req.Extra == nil || req.Extra.TokenInfo == nil || req.Extra.TokenInfo.Extra == nil {
+		return s.client
+	}
+	token, _ := req.Extra.TokenInfo.Extra[tokenInfoTripsyTokenKey].(string)
+	if strings.TrimSpace(token) == "" {
+		return s.client
+	}
+	baseURL := ""
+	var httpClient *http.Client
+	if s.client != nil {
+		baseURL = s.client.BaseURL
+		httpClient = s.client.HTTPClient
+	}
+	client := api.NewClient(baseURL, token)
+	client.HTTPClient = httpClient
+	return client
+}
+
+func requireToken(client *api.Client) error {
+	if client == nil || strings.TrimSpace(client.Token) == "" {
 		return errors.New("not authenticated; run `tripsy auth login`, `tripsy auth token set TOKEN`, or start the MCP server with TRIPSY_TOKEN")
 	}
 	return nil
+}
+
+func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
+	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			return nil, fmt.Errorf("%w: empty Tripsy token", auth.ErrInvalidToken)
+		}
+		client := api.NewClient(baseURL, token)
+		resp, err := client.Request(ctx, "GET", "/v1/me", nil, nil)
+		if err != nil {
+			var apiErr *api.Error
+			if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden) {
+				return nil, fmt.Errorf("%w: Tripsy token rejected", auth.ErrInvalidToken)
+			}
+			return nil, err
+		}
+		return &auth.TokenInfo{
+			Expiration: time.Now().Add(5 * time.Minute),
+			UserID:     userID(resp.Data),
+			Extra: map[string]any{
+				tokenInfoTripsyTokenKey: token,
+			},
+		}, nil
+	}
+}
+
+func userID(data any) string {
+	values, ok := data.(map[string]any)
+	if !ok {
+		return ""
+	}
+	for _, key := range []string{"id", "uuid", "email", "username"} {
+		value := strings.TrimSpace(fmt.Sprint(values[key]))
+		if value != "" && value != "<nil>" {
+			return value
+		}
+	}
+	return ""
 }
 
 func envelope(resp *api.Response, summary string) map[string]any {

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tripsyapp/cli/internal/api"
 	"github.com/tripsyapp/cli/internal/config"
@@ -138,6 +139,58 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	data := structured["data"].(map[string]any)
 	if data["name"] != "Copenhagen" {
 		t.Fatalf("data.name = %v, want Copenhagen", data["name"])
+	}
+}
+
+func TestRemoteBearerTokenOverridesStoredMCPToken(t *testing.T) {
+	var called atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if got := r.Header.Get("Authorization"); got != "Token remote-token" {
+			t.Errorf("Authorization = %q, want Token remote-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[]}`))
+	}))
+	defer apiServer.Close()
+
+	service := &service{client: api.NewClient(apiServer.URL, "stored-token"), store: config.NewStore(t.TempDir())}
+	req := &mcp.CallToolRequest{
+		Extra: &mcp.RequestExtra{
+			TokenInfo: &auth.TokenInfo{Extra: map[string]any{tokenInfoTripsyTokenKey: "remote-token"}},
+		},
+	}
+	res, err := service.do(testContext(t), req, "GET", "/v1/trips", nil, nil, "Trips")
+	if err != nil {
+		t.Fatalf("do() failed: %v", err)
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+	if got := res.(map[string]any)["summary"]; got != "Trips" {
+		t.Fatalf("summary = %v, want Trips", got)
+	}
+}
+
+func TestBearerTokenVerifierValidatesTripsyToken(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Token valid-token" {
+			t.Errorf("Authorization = %q, want Token valid-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":42,"email":"user@example.com"}`))
+	}))
+	defer apiServer.Close()
+
+	info, err := BearerTokenVerifier(apiServer.URL)(testContext(t), "valid-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+	if err != nil {
+		t.Fatalf("BearerTokenVerifier() failed: %v", err)
+	}
+	if info.UserID != "42" {
+		t.Fatalf("UserID = %q, want 42", info.UserID)
+	}
+	if got := info.Extra[tokenInfoTripsyTokenKey]; got != "valid-token" {
+		t.Fatalf("stored token = %v, want valid-token", got)
 	}
 }
 

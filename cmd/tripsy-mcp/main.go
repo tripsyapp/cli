@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tripsyapp/cli/internal/cli"
 	"github.com/tripsyapp/cli/internal/mcpserver"
@@ -23,6 +24,7 @@ func main() {
 	var httpPath string
 	var httpStateless bool
 	var httpJSON bool
+	var httpRequireBearer bool
 	var showVersion bool
 
 	flags := flag.NewFlagSet("tripsy-mcp", flag.ExitOnError)
@@ -34,6 +36,7 @@ func main() {
 	flags.StringVar(&httpPath, "http-path", "/mcp", "HTTP endpoint path for --transport=http")
 	flags.BoolVar(&httpStateless, "http-stateless", false, "run streamable HTTP without MCP session retention")
 	flags.BoolVar(&httpJSON, "http-json-response", false, "prefer application/json responses for streamable HTTP")
+	flags.BoolVar(&httpRequireBearer, "http-require-bearer", false, "require Authorization: Bearer <Tripsy token> for HTTP MCP requests and use it for Tripsy API calls")
 	flags.BoolVar(&showVersion, "version", false, "print version and exit")
 	flags.BoolVar(&showVersion, "v", false, "print version and exit")
 	_ = flags.Parse(os.Args[1:])
@@ -55,13 +58,13 @@ func main() {
 			log.Fatal(err)
 		}
 	case "http", "streamable-http":
-		runHTTP(server, info, httpAddr, httpPath, httpStateless, httpJSON)
+		runHTTP(server, info, httpAddr, httpPath, httpStateless, httpJSON, httpRequireBearer)
 	default:
 		log.Fatalf("unsupported transport %q; expected stdio or http", transport)
 	}
 }
 
-func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, stateless, jsonResponse bool) {
+func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, stateless, jsonResponse, requireBearer bool) {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
@@ -73,10 +76,14 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 		Logger:         slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		SessionTimeout: 30 * time.Minute,
 	})
+	var httpHandler http.Handler = handler
+	if requireBearer {
+		httpHandler = auth.RequireBearerToken(mcpserver.BearerTokenVerifier(info.APIBase), nil)(httpHandler)
+	}
 
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
-	log.Printf("Tripsy MCP listening on http://%s%s (api_base=%s auth_backend=%s has_token=%t)", addr, path, info.APIBase, info.AuthBackend, info.HasToken)
+	mux.Handle(path, httpHandler)
+	log.Printf("Tripsy MCP listening on http://%s%s (api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
 

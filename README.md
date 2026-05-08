@@ -120,6 +120,20 @@ Run a local streamable HTTP server instead:
 tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
 ```
 
+For a hosted remote MCP endpoint such as `https://tripsy.app/mcp`, run the HTTP server behind TLS and require a per-user bearer token:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --http-require-bearer
+```
+
+Then proxy the public path to the local MCP server:
+
+```text
+https://tripsy.app/mcp -> http://127.0.0.1:8787/mcp
+```
+
+With `--http-require-bearer`, each HTTP MCP request must include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it for downstream Tripsy API calls, so each remote client acts as its own Tripsy user instead of sharing the server's local credentials.
+
 The MCP server exposes typed tools such as `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
