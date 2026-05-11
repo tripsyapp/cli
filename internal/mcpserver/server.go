@@ -222,8 +222,10 @@ func requireToken(client *api.Client) error {
 	return nil
 }
 
+const tokenVerifierCacheTTL = 5 * time.Minute
+
 func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
-	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+	verifier := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		token = strings.TrimSpace(token)
 		if token == "" {
 			return nil, fmt.Errorf("%w: empty Tripsy token", auth.ErrInvalidToken)
@@ -238,7 +240,7 @@ func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
 			return nil, err
 		}
 		return &auth.TokenInfo{
-			Expiration: time.Now().Add(5 * time.Minute),
+			Expiration: time.Now().Add(tokenVerifierCacheTTL),
 			UserID:     userID(resp.Data),
 			Extra: map[string]any{
 				tokenInfoTripsyTokenKey: token,
@@ -246,10 +248,11 @@ func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
 			},
 		}, nil
 	}
+	return cachedVerifier(verifier, tokenVerifierCacheTTL)
 }
 
 func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
-	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+	verifier := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		token = strings.TrimSpace(token)
 		if token == "" {
 			return nil, fmt.Errorf("%w: empty OAuth access token", auth.ErrInvalidToken)
@@ -265,7 +268,7 @@ func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
 			return nil, err
 		}
 		return &auth.TokenInfo{
-			Expiration: time.Now().Add(5 * time.Minute),
+			Expiration: time.Now().Add(tokenVerifierCacheTTL),
 			UserID:     userID(resp.Data),
 			Extra: map[string]any{
 				tokenInfoTripsyTokenKey: token,
@@ -273,6 +276,7 @@ func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
 			},
 		}, nil
 	}
+	return cachedVerifier(verifier, tokenVerifierCacheTTL)
 }
 
 func userID(data any) string {

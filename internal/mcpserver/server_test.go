@@ -307,6 +307,26 @@ func TestOAuthBearerTokenVerifierValidatesUserinfo(t *testing.T) {
 	}
 }
 
+func TestBearerTokenVerifierCachesRepeatedTokens(t *testing.T) {
+	var calls atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":42}`))
+	}))
+	defer apiServer.Close()
+
+	verifier := BearerTokenVerifier(apiServer.URL)
+	for i := 0; i < 3; i++ {
+		if _, err := verifier(testContext(t), "repeat-token", httptest.NewRequest(http.MethodPost, "/mcp", nil)); err != nil {
+			t.Fatalf("verifier() failed on call %d: %v", i, err)
+		}
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("upstream calls = %d, want 1 (cache should suppress repeats)", got)
+	}
+}
+
 func TestActivitiesListSendsFilters(t *testing.T) {
 	var called atomic.Int32
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
