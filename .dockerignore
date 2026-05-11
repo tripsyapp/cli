@@ -1,0 +1,7 @@
+.git
+.github
+bin
+dist
+coverage.out
+.gocache
+.DS_Store

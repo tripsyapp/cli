@@ -118,6 +118,30 @@ func TestKeychainBackendStoresTokenOutsideCredentialsFile(t *testing.T) {
 	}
 }
 
+func TestLoadNonSecretCredentialsDoesNotReadStoredToken(t *testing.T) {
+	secrets := &fakeSecretStore{values: map[string]string{
+		tokenService + "/" + tokenAccount: "secret-token",
+	}}
+	store := &Store{Dir: t.TempDir(), AuthBackend: "keychain", secrets: secrets}
+	if err := store.saveFileCredentials(Credentials{Token: "legacy-token", BaseURL: "https://example.com"}, true); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := store.LoadNonSecretCredentials()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Token != "" {
+		t.Fatalf("Token = %q, want empty", out.Token)
+	}
+	if out.BaseURL != "https://example.com" {
+		t.Fatalf("BaseURL = %q, want https://example.com", out.BaseURL)
+	}
+	if got := secrets.values[tokenService+"/"+tokenAccount]; got != "secret-token" {
+		t.Fatalf("keychain token = %q, want untouched secret-token", got)
+	}
+}
+
 func TestLoadCredentialsMigratesLegacyTokenToKeychain(t *testing.T) {
 	dir := t.TempDir()
 	legacy := &Store{Dir: dir, AuthBackend: "file"}

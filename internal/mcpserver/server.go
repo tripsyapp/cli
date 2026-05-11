@@ -22,10 +22,12 @@ const (
 )
 
 type Options struct {
-	APIBase   string
-	Token     string
-	ConfigDir string
-	Version   string
+	APIBase           string
+	Token             string
+	ConfigDir         string
+	Version           string
+	DisableRawRequest bool
+	RequestTokenOnly  bool
 }
 
 type RuntimeInfo struct {
@@ -37,21 +39,29 @@ type RuntimeInfo struct {
 }
 
 type service struct {
-	client *api.Client
-	store  *config.Store
+	client            *api.Client
+	store             *config.Store
+	disableRawRequest bool
 }
 
 const tokenInfoTripsyTokenKey = "tripsy_token"
+const tokenInfoAuthSchemeKey = "auth_scheme"
 
 func New(opts Options) (*mcp.Server, RuntimeInfo, error) {
 	store := config.NewStore(opts.ConfigDir)
 	credentials, err := store.LoadCredentials()
+	if opts.RequestTokenOnly {
+		credentials, err = store.LoadNonSecretCredentials()
+	}
 	if err != nil {
 		return nil, RuntimeInfo{}, err
 	}
 
 	baseURL := firstNonEmpty(opts.APIBase, os.Getenv("TRIPSY_API_BASE"), credentials.BaseURL, api.DefaultBaseURL)
 	token := firstNonEmpty(opts.Token, os.Getenv("TRIPSY_TOKEN"), credentials.Token)
+	if opts.RequestTokenOnly {
+		token = ""
+	}
 
 	client := api.NewClient(baseURL, token)
 	info := RuntimeInfo{
@@ -61,12 +71,16 @@ func New(opts Options) (*mcp.Server, RuntimeInfo, error) {
 		CredentialsPath: store.CredentialsPath(),
 		HasToken:        strings.TrimSpace(client.Token) != "",
 	}
-	return NewWithClient(client, store, opts.Version), info, nil
+	return NewWithClientOptions(client, store, opts), info, nil
 }
 
 func NewWithClient(client *api.Client, store *config.Store, version string) *mcp.Server {
-	if strings.TrimSpace(version) == "" {
-		version = "dev"
+	return NewWithClientOptions(client, store, Options{Version: version})
+}
+
+func NewWithClientOptions(client *api.Client, store *config.Store, opts Options) *mcp.Server {
+	if strings.TrimSpace(opts.Version) == "" {
+		opts.Version = "dev"
 	}
 	if client == nil {
 		client = api.NewClient("", "")
@@ -74,11 +88,11 @@ func NewWithClient(client *api.Client, store *config.Store, version string) *mcp
 	if store == nil {
 		store = config.NewStore("")
 	}
-	s := &service{client: client, store: store}
+	s := &service{client: client, store: store, disableRawRequest: opts.DisableRawRequest}
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:       serverName,
 		Title:      serverTitle,
-		Version:    version,
+		Version:    opts.Version,
 		WebsiteURL: "https://tripsy.app",
 	}, nil)
 	s.register(server)
@@ -87,7 +101,9 @@ func NewWithClient(client *api.Client, store *config.Store, version string) *mcp
 
 func (s *service) register(server *mcp.Server) {
 	addTool(server, toolName("tripsy", "status"), "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
-	addTool(server, toolName("tripsy", "raw_request"), "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
+	if !s.disableRawRequest {
+		addTool(server, toolName("tripsy", "raw_request"), "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
+	}
 
 	addTool(server, toolName("tripsy", "me", "show"), "Show Current Tripsy User", "Return the authenticated Tripsy profile.", readOnly(), s.meShow)
 	addTool(server, toolName("tripsy", "me", "update"), "Update Current Tripsy User", "Update current Tripsy profile fields such as name, timezone, language, or default currency.", idempotentWrite(), s.meUpdate)
@@ -186,6 +202,7 @@ func (s *service) clientForRequest(req *mcp.CallToolRequest) *api.Client {
 	if strings.TrimSpace(token) == "" {
 		return s.client
 	}
+	authScheme, _ := req.Extra.TokenInfo.Extra[tokenInfoAuthSchemeKey].(string)
 	baseURL := ""
 	var httpClient *http.Client
 	if s.client != nil {
@@ -193,6 +210,7 @@ func (s *service) clientForRequest(req *mcp.CallToolRequest) *api.Client {
 		httpClient = s.client.HTTPClient
 	}
 	client := api.NewClient(baseURL, token)
+	client.AuthScheme = firstNonEmpty(authScheme, "Token")
 	client.HTTPClient = httpClient
 	return client
 }
@@ -224,6 +242,34 @@ func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
 			UserID:     userID(resp.Data),
 			Extra: map[string]any{
 				tokenInfoTripsyTokenKey: token,
+				tokenInfoAuthSchemeKey:  "Token",
+			},
+		}, nil
+	}
+}
+
+func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
+	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			return nil, fmt.Errorf("%w: empty OAuth access token", auth.ErrInvalidToken)
+		}
+		client := api.NewClient("", token)
+		client.AuthScheme = "Bearer"
+		resp, err := client.Request(ctx, "GET", userinfoEndpoint, nil, nil)
+		if err != nil {
+			var apiErr *api.Error
+			if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden) {
+				return nil, fmt.Errorf("%w: OAuth token rejected", auth.ErrInvalidToken)
+			}
+			return nil, err
+		}
+		return &auth.TokenInfo{
+			Expiration: time.Now().Add(5 * time.Minute),
+			UserID:     userID(resp.Data),
+			Extra: map[string]any{
+				tokenInfoTripsyTokenKey: token,
+				tokenInfoAuthSchemeKey:  "Bearer",
 			},
 		}, nil
 	}
@@ -234,7 +280,7 @@ func userID(data any) string {
 	if !ok {
 		return ""
 	}
-	for _, key := range []string{"id", "uuid", "email", "username"} {
+	for _, key := range []string{"sub", "id", "uuid", "email", "username"} {
 		value := strings.TrimSpace(fmt.Sprint(values[key]))
 		if value != "" && value != "<nil>" {
 			return value

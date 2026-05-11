@@ -117,6 +117,15 @@ func (s *Store) LoadCredentials() (Credentials, error) {
 	return credentials, nil
 }
 
+func (s *Store) LoadNonSecretCredentials() (Credentials, error) {
+	credentials, err := s.loadFileCredentials()
+	if err != nil {
+		return credentials, err
+	}
+	credentials.Token = ""
+	return credentials, nil
+}
+
 func (s *Store) SaveCredentials(credentials Credentials) error {
 	backend, secrets, err := s.resolveAuthBackend()
 	if err != nil {

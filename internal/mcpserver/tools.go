@@ -186,7 +186,7 @@ func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idI
 	if strings.TrimSpace(in.ID) == "" {
 		return nil, nil, fmt.Errorf("id is required")
 	}
-	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+in.ID, tripDataQuery(nil), nil, "Trip "+in.ID))
+	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip "+in.ID))
 }
 
 func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in dataInput) (*mcp.CallToolResult, any, error) {
@@ -203,14 +203,14 @@ func (s *service) tripUpdate(ctx context.Context, req *mcp.CallToolRequest, in t
 	if len(in.Data) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
-	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trips/"+in.ID, tripDataQuery(nil), in.Data, "Trip updated"))
+	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), in.Data, "Trip updated"))
 }
 
 func (s *service) tripDelete(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
 	if strings.TrimSpace(in.ID) == "" {
 		return nil, nil, fmt.Errorf("id is required")
 	}
-	return toolOutput(s.do(ctx, req, "DELETE", "/v1/trips/"+in.ID, tripDataQuery(nil), nil, "Trip deleted"))
+	return toolOutput(s.do(ctx, req, "DELETE", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip deleted"))
 }
 
 func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
@@ -236,7 +236,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 				}
 			}
 		}
-		return toolOutput(s.do(ctx, req, "GET", fmt.Sprintf(spec.ListPath, in.TripID), spec.responseQuery(query), nil, pluralTitle))
+		return toolOutput(s.do(ctx, req, "GET", fmt.Sprintf(spec.ListPath, apiPathSegment(in.TripID)), spec.responseQuery(query), nil, pluralTitle))
 	})
 	addTool(server, toolName("tripsy", spec.Prefix, "show"), "Show "+spec.Title, "Fetch one Tripsy "+strings.ToLower(spec.Title)+" by id.", readOnly(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
@@ -245,7 +245,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		if strings.TrimSpace(in.ID) == "" {
 			return nil, nil, fmt.Errorf("id is required")
 		}
-		return toolOutput(s.do(ctx, req, "GET", fmt.Sprintf(spec.DetailPath, in.TripID, in.ID), spec.responseQuery(nil), nil, spec.Title+" "+in.ID))
+		return toolOutput(s.do(ctx, req, "GET", fmt.Sprintf(spec.DetailPath, apiPathSegment(in.TripID), apiPathSegment(in.ID)), spec.responseQuery(nil), nil, spec.Title+" "+in.ID))
 	})
 	addTool(server, toolName("tripsy", spec.Prefix, "create"), "Create "+spec.Title, "Create a Tripsy "+strings.ToLower(spec.Title)+". "+spec.CreateAdvice, additive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceDataInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
@@ -254,7 +254,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		if len(in.Data) == 0 {
 			return nil, nil, fmt.Errorf("data is required")
 		}
-		return toolOutput(s.do(ctx, req, "POST", fmt.Sprintf(spec.ListPath, in.TripID), spec.responseQuery(nil), in.Data, spec.Title+" created"))
+		return toolOutput(s.do(ctx, req, "POST", fmt.Sprintf(spec.ListPath, apiPathSegment(in.TripID)), spec.responseQuery(nil), in.Data, spec.Title+" created"))
 	})
 	addTool(server, toolName("tripsy", spec.Prefix, "update"), "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id.", idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
@@ -266,7 +266,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		if len(in.Data) == 0 {
 			return nil, nil, fmt.Errorf("data is required")
 		}
-		return toolOutput(s.do(ctx, req, "PATCH", fmt.Sprintf(spec.DetailPath, in.TripID, in.ID), spec.responseQuery(nil), in.Data, spec.Title+" updated"))
+		return toolOutput(s.do(ctx, req, "PATCH", fmt.Sprintf(spec.DetailPath, apiPathSegment(in.TripID), apiPathSegment(in.ID)), spec.responseQuery(nil), in.Data, spec.Title+" updated"))
 	})
 	addTool(server, toolName("tripsy", spec.Prefix, "delete"), "Delete "+spec.Title, "Delete a Tripsy "+strings.ToLower(spec.Title)+" by id.", destructive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceIDInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
@@ -275,7 +275,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		if strings.TrimSpace(in.ID) == "" {
 			return nil, nil, fmt.Errorf("id is required")
 		}
-		return toolOutput(s.do(ctx, req, "DELETE", fmt.Sprintf(spec.DetailPath, in.TripID, in.ID), spec.responseQuery(nil), nil, spec.Title+" deleted"))
+		return toolOutput(s.do(ctx, req, "DELETE", fmt.Sprintf(spec.DetailPath, apiPathSegment(in.TripID), apiPathSegment(in.ID)), spec.responseQuery(nil), nil, spec.Title+" deleted"))
 	})
 }
 
@@ -283,7 +283,11 @@ func (s *service) collaboratorsList(ctx context.Context, req *mcp.CallToolReques
 	if strings.TrimSpace(in.TripID) == "" {
 		return nil, nil, fmt.Errorf("trip_id is required")
 	}
-	return toolOutput(s.do(ctx, req, "GET", "/v1/trip/"+in.TripID+"/collaborators", nil, nil, "Collaborators"))
+	return toolOutput(s.do(ctx, req, "GET", "/v1/trip/"+apiPathSegment(in.TripID)+"/collaborators", nil, nil, "Collaborators"))
+}
+
+func apiPathSegment(value string) string {
+	return url.PathEscape(strings.TrimSpace(value))
 }
 
 func listQuery(in listInput) url.Values {

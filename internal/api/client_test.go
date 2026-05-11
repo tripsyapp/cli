@@ -31,6 +31,21 @@ func TestRequestSendsTokenAndParsesJSON(t *testing.T) {
 	}
 }
 
+func TestRequestCanSendBearerToken(t *testing.T) {
+	client := NewClient("https://api.test", "oauth-token")
+	client.AuthScheme = "Bearer"
+	client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if got, want := r.Header.Get("Authorization"), "Bearer oauth-token"; got != want {
+			t.Fatalf("Authorization = %q, want %q", got, want)
+		}
+		return jsonResponse(http.StatusOK, map[string]any{"ok": true}), nil
+	})}
+
+	if _, err := client.Request(context.Background(), "GET", "/v1/me", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRequestReturnsAPIError(t *testing.T) {
 	client := NewClient("https://api.test", "bad")
 	client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {

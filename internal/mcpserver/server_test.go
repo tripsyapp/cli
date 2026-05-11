@@ -80,6 +80,47 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 }
 
+func TestListToolsCanDisableRawRequest(t *testing.T) {
+	session, cleanup := connectTestSessionOptions(t, "test-token", http.NotFoundHandler(), Options{DisableRawRequest: true})
+	defer cleanup()
+
+	res, err := session.ListTools(testContext(t), nil)
+	if err != nil {
+		t.Fatalf("ListTools() failed: %v", err)
+	}
+	if findTool(res.Tools, "tripsy_raw_request") != nil {
+		t.Fatal("tripsy_raw_request should not be registered when disabled")
+	}
+	if findTool(res.Tools, "tripsy_trips_create") == nil {
+		t.Fatal("typed tools should still be registered")
+	}
+}
+
+func TestNewRequestTokenOnlyIgnoresServerTokenSources(t *testing.T) {
+	t.Setenv("TRIPSY_AUTH_BACKEND", "file")
+	t.Setenv("TRIPSY_TOKEN", "env-token")
+	dir := t.TempDir()
+	store := config.NewStore(dir)
+	if err := store.SaveCredentials(config.Credentials{Token: "stored-token", BaseURL: "https://example.com"}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, info, err := New(Options{
+		ConfigDir:        dir,
+		Token:            "option-token",
+		RequestTokenOnly: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.HasToken {
+		t.Fatal("HasToken = true, want false in request-token-only mode")
+	}
+	if info.APIBase != "https://example.com" {
+		t.Fatalf("APIBase = %q, want non-secret stored base URL", info.APIBase)
+	}
+}
+
 func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	var called atomic.Int32
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +183,27 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	}
 }
 
+func TestTypedToolEscapesPathIDs(t *testing.T) {
+	var called atomic.Int32
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if r.URL.EscapedPath() != "/v1/trips/a%2Fb" {
+			t.Errorf("escaped path = %s, want /v1/trips/a%%2Fb", r.URL.EscapedPath())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"a/b"}`))
+	}))
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_trips_show", map[string]any{"id": "a/b"})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+}
+
 func TestRemoteBearerTokenOverridesStoredMCPToken(t *testing.T) {
 	var called atomic.Int32
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +234,35 @@ func TestRemoteBearerTokenOverridesStoredMCPToken(t *testing.T) {
 	}
 }
 
+func TestRemoteOAuthBearerTokenUsesBearerScheme(t *testing.T) {
+	var called atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if got := r.Header.Get("Authorization"); got != "Bearer oauth-token" {
+			t.Errorf("Authorization = %q, want Bearer oauth-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[]}`))
+	}))
+	defer apiServer.Close()
+
+	service := &service{client: api.NewClient(apiServer.URL, "stored-token"), store: config.NewStore(t.TempDir())}
+	req := &mcp.CallToolRequest{
+		Extra: &mcp.RequestExtra{
+			TokenInfo: &auth.TokenInfo{Extra: map[string]any{
+				tokenInfoTripsyTokenKey: "oauth-token",
+				tokenInfoAuthSchemeKey:  "Bearer",
+			}},
+		},
+	}
+	if _, err := service.do(testContext(t), req, "GET", "/v1/trips", nil, nil, "Trips"); err != nil {
+		t.Fatalf("do() failed: %v", err)
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+}
+
 func TestBearerTokenVerifierValidatesTripsyToken(t *testing.T) {
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Token valid-token" {
@@ -191,6 +282,28 @@ func TestBearerTokenVerifierValidatesTripsyToken(t *testing.T) {
 	}
 	if got := info.Extra[tokenInfoTripsyTokenKey]; got != "valid-token" {
 		t.Fatalf("stored token = %v, want valid-token", got)
+	}
+}
+
+func TestOAuthBearerTokenVerifierValidatesUserinfo(t *testing.T) {
+	userinfoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer valid-oauth-token" {
+			t.Errorf("Authorization = %q, want Bearer valid-oauth-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sub":"user-uuid","email":"user@example.com"}`))
+	}))
+	defer userinfoServer.Close()
+
+	info, err := OAuthBearerTokenVerifier(userinfoServer.URL)(testContext(t), "valid-oauth-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+	if err != nil {
+		t.Fatalf("OAuthBearerTokenVerifier() failed: %v", err)
+	}
+	if info.UserID != "user-uuid" {
+		t.Fatalf("UserID = %q, want user-uuid", info.UserID)
+	}
+	if got := info.Extra[tokenInfoAuthSchemeKey]; got != "Bearer" {
+		t.Fatalf("auth scheme = %v, want Bearer", got)
 	}
 }
 
@@ -322,10 +435,15 @@ func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
 }
 
 func connectTestSession(t *testing.T, token string, handler http.Handler) (*mcp.ClientSession, func()) {
+	return connectTestSessionOptions(t, token, handler, Options{})
+}
+
+func connectTestSessionOptions(t *testing.T, token string, handler http.Handler, opts Options) (*mcp.ClientSession, func()) {
 	t.Helper()
 
 	apiServer := httptest.NewServer(handler)
-	server := NewWithClient(api.NewClient(apiServer.URL, token), config.NewStore(t.TempDir()), "test")
+	opts.Version = firstNonEmpty(opts.Version, "test")
+	server := NewWithClientOptions(api.NewClient(apiServer.URL, token), config.NewStore(t.TempDir()), opts)
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
 
 	serverSession, err := server.Connect(testContext(t), serverTransport, nil)

@@ -18,6 +18,7 @@ const DefaultBaseURL = "https://api.tripsy.app"
 type Client struct {
 	BaseURL    string
 	Token      string
+	AuthScheme string
 	HTTPClient *http.Client
 }
 
@@ -86,7 +87,11 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if strings.TrimSpace(c.Token) != "" {
-		req.Header.Set("Authorization", "Token "+strings.TrimSpace(c.Token))
+		scheme := strings.TrimSpace(c.AuthScheme)
+		if scheme == "" {
+			scheme = "Token"
+		}
+		req.Header.Set("Authorization", scheme+" "+strings.TrimSpace(c.Token))
 	}
 
 	resp, err := c.httpClient().Do(req)
