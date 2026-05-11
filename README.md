@@ -94,7 +94,30 @@ TRIPSY_AUTH_BACKEND=auto|keychain|file
 
 ## MCP Server
 
-Use `tripsy-mcp` when an agent or app supports MCP. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
+Use Tripsy's MCP server when an agent or app supports MCP. Two ways to connect:
+
+### Hosted endpoint (recommended)
+
+Tripsy operates a public MCP server at `https://mcp.tripsy.app/mcp`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`.
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "tripsy": {
+      "type": "http",
+      "url": "https://mcp.tripsy.app/mcp"
+    }
+  }
+}
+```
+
+On first use, the client opens the Tripsy OAuth consent screen. After approval, the client stores the bearer token and reuses it for every request.
+
+### Self-hosted
+
+Run `tripsy-mcp` locally when you want full control or a stdio transport. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
 
 Run the default stdio server:
 
@@ -120,19 +143,38 @@ Run a local streamable HTTP server instead:
 tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
 ```
 
-For a hosted remote MCP endpoint such as `https://tripsy.app/mcp`, run the HTTP server behind TLS and require a per-user bearer token:
+The default HTTP endpoint path is `/mcp`, so this is equivalent to:
 
 ```sh
-tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --http-require-bearer
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787
+```
+
+To host your own remote MCP endpoint equivalent to `https://mcp.tripsy.app/mcp`, run the HTTP server behind TLS:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --disable-raw-request
 ```
 
 Then proxy the public path to the local MCP server:
 
 ```text
-https://tripsy.app/mcp -> http://127.0.0.1:8787/mcp
+https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
 ```
 
-With `--http-require-bearer`, each HTTP MCP request must include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it for downstream Tripsy API calls, so each remote client acts as its own Tripsy user instead of sharing the server's local credentials.
+HTTP MCP always requires each request to include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user. HTTP mode intentionally ignores `--token`, `TRIPSY_TOKEN`, keychain tokens, and legacy `credentials.json` tokens to avoid any server-side credential fallback.
+
+For public hosted servers, keep `--disable-raw-request` enabled unless you intentionally want to expose the broad `tripsy_raw_request` tool. The typed tools cover the core Tripsy workflows with a narrower API surface.
+
+When hosting the MCP server for OAuth-capable remote clients such as Claude or ChatGPT, configure the public MCP URL and Tripsy OAuth issuer so clients can discover the authorization flow:
+
+```sh
+TRIPSY_MCP_PUBLIC_URL=https://mcp.tripsy.app
+TRIPSY_OAUTH_ISSUER=https://my.tripsy.app
+TRIPSY_OAUTH_SCOPES="profile email"
+TRIPSY_API_BASE=https://my.tripsy.app
+```
+
+With those values, unauthenticated requests to `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
 
 The MCP server exposes typed tools such as `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
