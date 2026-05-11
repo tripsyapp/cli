@@ -171,7 +171,7 @@ When hosting the MCP server for OAuth-capable remote clients such as Claude or C
 TRIPSY_MCP_PUBLIC_URL=https://mcp.tripsy.app
 TRIPSY_OAUTH_ISSUER=https://my.tripsy.app
 TRIPSY_OAUTH_SCOPES="profile email"
-TRIPSY_API_BASE=https://my.tripsy.app
+TRIPSY_API_BASE=https://api.tripsy.app
 ```
 
 With those values, unauthenticated requests to `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
