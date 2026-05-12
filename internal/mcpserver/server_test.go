@@ -29,8 +29,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 
 	for _, name := range []string{
 		"tripsy_status",
+		"tripsy_itinerary_guidance",
 		"tripsy_trips_create",
 		"tripsy_activities_create",
+		"tripsy_hostings_create",
+		"tripsy_transportations_create",
 		"tripsy_collaborators_list",
 		"tripsy_raw_request",
 	} {
@@ -70,13 +73,59 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
-	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "images.unsplash.com") {
+	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "not an unsplash.com/photos page URL") {
 		t.Fatalf("trips create description should mention Unsplash cover_image_url guidance: %q", tripsCreate.Description)
+	}
+	tripsCreateSchema := toolSchemaString(t, tripsCreate)
+	if !strings.Contains(tripsCreateSchema, "cover_image_url") || !strings.Contains(tripsCreateSchema, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreateSchema, "starts_at") {
+		t.Fatalf("trips create input schema should expose typed itinerary fields: %s", tripsCreateSchema)
 	}
 
 	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
-	if !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") {
+	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
 		t.Fatalf("activities create description should mention category and coordinates guidance: %q", activitiesCreate.Description)
+	}
+	activitiesCreateSchema := toolSchemaString(t, activitiesCreate)
+	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "do not invent values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "latitude") {
+		t.Fatalf("activities create input schema should expose typed activity fields: %s", activitiesCreateSchema)
+	}
+
+	hostingsCreate := findTool(res.Tools, "tripsy_hostings_create")
+	if !strings.Contains(hostingsCreate.Description, "lodging rather than activities") || !strings.Contains(hostingsCreate.Description, "address") || !strings.Contains(hostingsCreate.Description, "latitude") {
+		t.Fatalf("hostings create description should mention lodging and coordinates guidance: %q", hostingsCreate.Description)
+	}
+
+	transportationsCreate := findTool(res.Tools, "tripsy_transportations_create")
+	if !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") {
+		t.Fatalf("transportations create description should mention transfer roadtrip endpoint guidance: %q", transportationsCreate.Description)
+	}
+	transportationsCreateSchema := toolSchemaString(t, transportationsCreate)
+	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
+		t.Fatalf("transportations create input schema should expose typed transfer fields: %s", transportationsCreateSchema)
+	}
+}
+
+func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
+	session, cleanup := connectTestSession(t, "test-token", http.NotFoundHandler())
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_itinerary_guidance", map[string]any{})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+
+	text := toolText(res)
+	for _, want := range []string{
+		"cover_image_url",
+		"https://images.unsplash.com/photo-",
+		"unsplash.com/photos",
+		"one Tripsy item per actual stop",
+		"transportation_type roadtrip",
+		"Do not use unsupported activity_type values such as sightseeing",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("itinerary guidance missing %q in: %s", want, text)
+		}
 	}
 }
 
@@ -180,6 +229,68 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	data := structured["data"].(map[string]any)
 	if data["name"] != "Copenhagen" {
 		t.Fatalf("data.name = %v, want Copenhagen", data["name"])
+	}
+}
+
+func TestTransportationCreateAcceptsTypedTransferFields(t *testing.T) {
+	var called atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/trip/42/transportations" {
+			t.Errorf("path = %s, want /v1/trip/42/transportations", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		for key, want := range map[string]any{
+			"name":                  "Transfer to Hotel Eden",
+			"transportation_type":   "roadtrip",
+			"departure_description": "Rome Fiumicino Airport",
+			"departure_address":     "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+			"arrival_description":   "Hotel Eden",
+			"arrival_address":       "Via Ludovisi 49, 00187 Rome, Italy",
+		} {
+			if body[key] != want {
+				t.Errorf("body[%s] = %v, want %v", key, body[key], want)
+			}
+		}
+		if body["departure_latitude"] != 41.8003 || body["arrival_longitude"] != 12.4882 {
+			t.Errorf("coordinates not forwarded: %#v", body)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":303,"name":"Transfer to Hotel Eden"}`))
+	})
+	session, cleanup := connectTestSession(t, "test-token", handler)
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_transportations_create", map[string]any{
+		"trip_id":               "42",
+		"name":                  "Transfer to Hotel Eden",
+		"transportation_type":   "roadtrip",
+		"departure_description": "Rome Fiumicino Airport",
+		"departure_address":     "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+		"departure_latitude":    41.8003,
+		"departure_longitude":   12.2389,
+		"arrival_description":   "Hotel Eden",
+		"arrival_address":       "Via Ludovisi 49, 00187 Rome, Italy",
+		"arrival_latitude":      41.9081,
+		"arrival_longitude":     12.4882,
+	})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
 	}
 }
 
@@ -511,6 +622,15 @@ func findTool(tools []*mcp.Tool, name string) *mcp.Tool {
 		}
 	}
 	return nil
+}
+
+func toolSchemaString(t *testing.T, tool *mcp.Tool) string {
+	t.Helper()
+	data, err := json.Marshal(tool.InputSchema)
+	if err != nil {
+		t.Fatalf("marshal tool schema for %s: %v", tool.Name, err)
+	}
+	return string(data)
 }
 
 func structuredMap(t *testing.T, res *mcp.CallToolResult) map[string]any {

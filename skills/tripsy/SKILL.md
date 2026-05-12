@@ -28,7 +28,17 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Use the most specific supported category slug for `activity_type`; do not default to `general` or `tour` when a better category exists.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
+- For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - For destructive commands, state what will be deleted before running the command when the user has not already been explicit.
+
+Avoid these common itinerary mistakes:
+
+- Do not use `unsplash.com/photos/...` as `cover_image_url`.
+- Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
+- Do not put hotels or lodging into activities.
+- Do not put transfers into activities.
+- Do not omit coordinates when a location is known.
+- Do not use unsupported `activity_type` values such as `sightseeing`.
 
 ## MCP Server
 
@@ -38,6 +48,7 @@ Common tool names:
 
 ```text
 tripsy_status
+tripsy_itinerary_guidance
 tripsy_trips_create
 tripsy_activities_create
 tripsy_hostings_create
@@ -237,6 +248,51 @@ Tripsy works best when the itinerary is structured as separate timed items:
 - Include `address`, `latitude`, and `longitude` whenever a location is known.
 - Use `hostings` for hotels/lodging and `transportations` for transport segments instead of forcing them into activities.
 
+Golden path payload shape:
+
+```json
+{
+  "trip": {
+    "name": "Rome",
+    "timezone": "Europe/Rome",
+    "starts_at": "2026-06-01",
+    "ends_at": "2026-06-05",
+    "cover_image_url": "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
+  },
+  "hosting": {
+    "name": "Hotel Eden",
+    "starts_at": "2026-06-01T14:00:00Z",
+    "ends_at": "2026-06-05T11:00:00Z",
+    "timezone": "Europe/Rome",
+    "address": "Via Ludovisi 49, 00187 Rome, Italy",
+    "latitude": 41.9081,
+    "longitude": 12.4882
+  },
+  "activity": {
+    "name": "Colosseum Tour",
+    "activity_type": "tour",
+    "starts_at": "2026-06-03T09:00:00Z",
+    "ends_at": "2026-06-03T11:00:00Z",
+    "timezone": "Europe/Rome",
+    "address": "Piazza del Colosseo, 1, 00184 Rome, Italy",
+    "latitude": 41.8902,
+    "longitude": 12.4922
+  },
+  "transfer": {
+    "name": "Transfer to Hotel Eden",
+    "transportation_type": "roadtrip",
+    "departure_description": "Rome Fiumicino Airport",
+    "departure_address": "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+    "departure_latitude": 41.8003,
+    "departure_longitude": 12.2389,
+    "arrival_description": "Hotel Eden",
+    "arrival_address": "Via Ludovisi 49, 00187 Rome, Italy",
+    "arrival_latitude": 41.9081,
+    "arrival_longitude": 12.4882
+  }
+}
+```
+
 Activity category slugs:
 
 ```text
@@ -298,6 +354,8 @@ tripsy transportations create --trip TRIP_ID --name "Flight to Rome" --transport
 ```
 
 Useful transportation fields: `transportation_type`, `departure_description`, `departure_at`, `departure_timezone`, `departure_address`, `departure_longitude`, `departure_latitude`, `arrival_description`, `arrival_at`, `arrival_timezone`, `arrival_address`, `arrival_longitude`, `arrival_latitude`, `company`, `seat_number`, `seat_class`, `transport_number`, `terminal`, `gate`, `price`, `currency`, and `assigned_users`.
+
+For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and include departure and arrival names/descriptions, addresses, latitudes, and longitudes.
 
 Expenses:
 

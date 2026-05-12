@@ -32,6 +32,20 @@ func TestCommandsJSON(t *testing.T) {
 	if _, ok := envelope["data"].([]any); !ok {
 		t.Fatalf("data = %T, want []any", envelope["data"])
 	}
+	data, _ := json.Marshal(envelope["data"])
+	text := string(data)
+	for _, want := range []string{
+		"cover_image_url",
+		"https://images.unsplash.com/photo-",
+		"activity-type tour",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("command catalog missing %q in %s", want, text)
+		}
+	}
+	if strings.Contains(text, "activity-type sightseeing") {
+		t.Fatalf("command catalog should not recommend unsupported sightseeing category: %s", text)
+	}
 }
 
 func TestRequestRequiresMethodAndPath(t *testing.T) {

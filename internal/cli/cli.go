@@ -1949,13 +1949,13 @@ func commandCatalog() []commandSpec {
 			Subcommands: []string{"list", "show", "create", "update", "delete"},
 			Examples: []string{
 				"tripsy trips list",
-				"tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome",
+				"tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url 'https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0'",
 				"tripsy trips update 42 --description 'Summer vacation'",
 			},
-			Gotchas: []string{"GET /v1/trips returns a custom envelope with results but no count."},
+			Gotchas: []string{"Use a direct images.unsplash.com/photo-... URL for cover_image_url, not an unsplash.com/photos page URL.", "GET /v1/trips returns a custom envelope with results but no count."},
 		},
 		resourceCommandSpec("hostings", "hosting", "Hotel and lodging plans", "tripsy hostings create --trip 42 --name 'Hotel Eden' --starts-at 2026-06-01T14:00:00Z"),
-		resourceCommandSpec("activities", "activity", "Scheduled or unscheduled trip activities", "tripsy activities create --trip 42 --name 'Colosseum Tour' --activity-type sightseeing"),
+		resourceCommandSpec("activities", "activity", "Scheduled or unscheduled trip activities", "tripsy activities create --trip 42 --name 'Colosseum Tour' --activity-type tour"),
 		resourceCommandSpec("transportations", "transportation", "Flights, trains, cars, and other transport", "tripsy transportations create --trip 42 --name 'Flight to Rome' --transportation-type airplane"),
 		resourceCommandSpec("expenses", "expense", "Trip expenses", "tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR"),
 		{

@@ -25,6 +25,81 @@ type dataInput struct {
 	Data map[string]any `json:"data" jsonschema:"Object of Tripsy API fields to send."`
 }
 
+type tripCreateInput struct {
+	Data          map[string]any `json:"data,omitempty" jsonschema:"Optional raw Tripsy API fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name          string         `json:"name,omitempty" jsonschema:"Trip name, such as Italy or Lisbon Birthday Weekend."`
+	Timezone      string         `json:"timezone,omitempty" jsonschema:"Primary IANA timezone for the trip, such as Europe/Rome."`
+	Description   string         `json:"description,omitempty" jsonschema:"Optional trip description."`
+	StartsAt      string         `json:"starts_at,omitempty" jsonschema:"Trip start date as YYYY-MM-DD, for example 2026-06-01."`
+	EndsAt        string         `json:"ends_at,omitempty" jsonschema:"Trip end date as YYYY-MM-DD, for example 2026-06-15."`
+	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific direct Unsplash image URL. Must start with https://images.unsplash.com/photo-..., not an unsplash.com/photos page URL."`
+	HasDates      *bool          `json:"has_dates,omitempty" jsonschema:"Whether the trip has explicit dates."`
+	NumberOfDays  *int           `json:"number_of_days,omitempty" jsonschema:"Number of days for an undated trip."`
+	Hidden        *bool          `json:"hidden,omitempty" jsonschema:"Whether the trip should be hidden."`
+}
+
+type activityCreateInput struct {
+	TripID       string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data         map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name         string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
+	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Supported activity category slug. Use the most specific supported slug; do not invent values such as sightseeing."`
+	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z."`
+	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z."`
+	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity, such as Europe/Rome."`
+	Address      string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
+	Latitude     *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
+	Longitude    *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
+	Description  string         `json:"description,omitempty" jsonschema:"Optional activity description."`
+	Notes        string         `json:"notes,omitempty" jsonschema:"Optional notes."`
+	Website      string         `json:"website,omitempty" jsonschema:"Optional website URL."`
+	Price        *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency     string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+}
+
+type hostingCreateInput struct {
+	TripID      string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data        map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name        string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
+	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z."`
+	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z."`
+	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging, such as Europe/Rome."`
+	Address     string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
+	Latitude    *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
+	Longitude   *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
+	Description string         `json:"description,omitempty" jsonschema:"Optional lodging description."`
+	RoomType    string         `json:"room_type,omitempty" jsonschema:"Optional room type."`
+	RoomNumber  string         `json:"room_number,omitempty" jsonschema:"Optional room number."`
+	Website     string         `json:"website,omitempty" jsonschema:"Optional website URL."`
+	Price       *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency    string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+}
+
+type transportationCreateInput struct {
+	TripID               string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data                 map[string]any `json:"data,omitempty" jsonschema:"Optional raw transportation fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name                 string         `json:"name,omitempty" jsonschema:"Transportation segment name."`
+	TransportationType   string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For transfer activities, use roadtrip."`
+	DepartureDescription string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For transfers, include the real place name."`
+	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known."`
+	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure IANA timezone."`
+	DepartureAddress     string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
+	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for transfer activities when known."`
+	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for transfer activities when known."`
+	ArrivalDescription   string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For transfers, include the real place name."`
+	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known."`
+	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival IANA timezone."`
+	ArrivalAddress       string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
+	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for transfer activities when known."`
+	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for transfer activities when known."`
+	Description          string         `json:"description,omitempty" jsonschema:"Optional transportation description."`
+	Notes                string         `json:"notes,omitempty" jsonschema:"Optional notes."`
+	Company              string         `json:"company,omitempty" jsonschema:"Carrier, operator, or transfer company."`
+	TransportNumber      string         `json:"transport_number,omitempty" jsonschema:"Flight, train, bus, or booking number when relevant."`
+	VehicleDescription   string         `json:"vehicle_description,omitempty" jsonschema:"Vehicle description for cars, transfers, and roadtrips."`
+	Price                *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency             string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+}
+
 type idInput struct {
 	ID string `json:"id" jsonschema:"Tripsy resource id."`
 }
@@ -91,7 +166,10 @@ type resourceSpec struct {
 	Description  string
 	CreateAdvice string
 	ExcludeData  bool
+	SkipCreate   bool
 }
+
+type itineraryGuidanceInput struct{}
 
 func (s *service) status(ctx context.Context, req *mcp.CallToolRequest, in statusInput) (*mcp.CallToolResult, any, error) {
 	client := s.clientForRequest(req)
@@ -148,6 +226,75 @@ func (s *service) rawRequest(ctx context.Context, req *mcp.CallToolRequest, in r
 	return toolOutput(s.do(ctx, req, method, path, query, body, "Raw Tripsy API response"))
 }
 
+func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itineraryGuidanceInput) (*mcp.CallToolResult, any, error) {
+	rules := []string{
+		"Create the trip first with name, timezone, starts_at, ends_at, and cover_image_url when planning dated travel.",
+		"For leisure or destination trips, choose a destination-specific direct Unsplash image URL for cover_image_url.",
+		"cover_image_url must be an https://images.unsplash.com/photo-... URL, not an unsplash.com/photos page URL.",
+		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
+		"Use activities for stops, meals, tours, events, and experiences; choose the most specific supported activity_type slug.",
+		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
+		"Use transportations for point-to-point movement.",
+		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
+		"Use exact UTC ISO-8601 timestamps for timed items and set the relevant local timezone.",
+		"Add address, latitude, and longitude for map-relevant activities, hostings, and transportation endpoints.",
+	}
+	doNot := []string{
+		"Do not use unsplash.com/photos/... as cover_image_url.",
+		"Do not create one activity named Day 1 itinerary or similar that contains multiple stops.",
+		"Do not put hotels or lodging into activities.",
+		"Do not put transfers into activities.",
+		"Do not omit coordinates when a location is known.",
+		"Do not use unsupported activity_type values such as sightseeing.",
+	}
+	example := map[string]any{
+		"trip": map[string]any{
+			"name":            "Rome",
+			"timezone":        "Europe/Rome",
+			"starts_at":       "2026-06-01",
+			"ends_at":         "2026-06-05",
+			"cover_image_url": "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0",
+		},
+		"hosting": map[string]any{
+			"name":      "Hotel Eden",
+			"starts_at": "2026-06-01T14:00:00Z",
+			"ends_at":   "2026-06-05T11:00:00Z",
+			"timezone":  "Europe/Rome",
+			"address":   "Via Ludovisi 49, 00187 Rome, Italy",
+			"latitude":  41.9081,
+			"longitude": 12.4882,
+		},
+		"activity": map[string]any{
+			"name":          "Colosseum Tour",
+			"activity_type": "tour",
+			"starts_at":     "2026-06-03T09:00:00Z",
+			"ends_at":       "2026-06-03T11:00:00Z",
+			"timezone":      "Europe/Rome",
+			"address":       "Piazza del Colosseo, 1, 00184 Rome, Italy",
+			"latitude":      41.8902,
+			"longitude":     12.4922,
+		},
+		"transfer": map[string]any{
+			"name":                  "Transfer to Hotel Eden",
+			"transportation_type":   "roadtrip",
+			"departure_description": "Rome Fiumicino Airport",
+			"departure_address":     "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+			"departure_latitude":    41.8003,
+			"departure_longitude":   12.2389,
+			"arrival_description":   "Hotel Eden",
+			"arrival_address":       "Via Ludovisi 49, 00187 Rome, Italy",
+			"arrival_latitude":      41.9081,
+			"arrival_longitude":     12.4882,
+		},
+	}
+	data := map[string]any{
+		"rules":           rules,
+		"do_not":          doNot,
+		"example_payload": example,
+	}
+	return nil, map[string]any{"summary": "Tripsy itinerary guidance", "data": data}, nil
+}
+
 func allowRawRequestPath(apiPath string) error {
 	cleaned := path.Clean("/" + strings.TrimLeft(apiPath, "/"))
 	blocked := map[string]string{
@@ -189,11 +336,12 @@ func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idI
 	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip "+in.ID))
 }
 
-func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in dataInput) (*mcp.CallToolResult, any, error) {
-	if len(in.Data) == 0 {
+func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in tripCreateInput) (*mcp.CallToolResult, any, error) {
+	payload := tripCreatePayload(in)
+	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
-	return toolOutput(s.do(ctx, req, "POST", "/v1/trips", tripDataQuery(nil), in.Data, "Trip created"))
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trips", tripDataQuery(nil), payload, "Trip created"))
 }
 
 func (s *service) tripUpdate(ctx context.Context, req *mcp.CallToolRequest, in tripUpdateInput) (*mcp.CallToolResult, any, error) {
@@ -211,6 +359,147 @@ func (s *service) tripDelete(ctx context.Context, req *mcp.CallToolRequest, in i
 		return nil, nil, fmt.Errorf("id is required")
 	}
 	return toolOutput(s.do(ctx, req, "DELETE", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip deleted"))
+}
+
+func (s *service) activityCreate(ctx context.Context, req *mcp.CallToolRequest, in activityCreateInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.TripID) == "" {
+		return nil, nil, fmt.Errorf("trip_id is required")
+	}
+	payload := activityCreatePayload(in)
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("data is required")
+	}
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/activities", tripDataQuery(nil), payload, "Activity created"))
+}
+
+func (s *service) hostingCreate(ctx context.Context, req *mcp.CallToolRequest, in hostingCreateInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.TripID) == "" {
+		return nil, nil, fmt.Errorf("trip_id is required")
+	}
+	payload := hostingCreatePayload(in)
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("data is required")
+	}
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/hostings", tripDataQuery(nil), payload, "Hosting created"))
+}
+
+func (s *service) transportationCreate(ctx context.Context, req *mcp.CallToolRequest, in transportationCreateInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.TripID) == "" {
+		return nil, nil, fmt.Errorf("trip_id is required")
+	}
+	payload := transportationCreatePayload(in)
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("data is required")
+	}
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/transportations", tripDataQuery(nil), payload, "Transportation created"))
+}
+
+func tripCreatePayload(in tripCreateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "timezone", in.Timezone)
+	setString(payload, "description", in.Description)
+	setString(payload, "starts_at", in.StartsAt)
+	setString(payload, "ends_at", in.EndsAt)
+	setString(payload, "cover_image_url", in.CoverImageURL)
+	setBool(payload, "has_dates", in.HasDates)
+	setInt(payload, "number_of_days", in.NumberOfDays)
+	setBool(payload, "hidden", in.Hidden)
+	return payload
+}
+
+func activityCreatePayload(in activityCreateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "activity_type", in.ActivityType)
+	setString(payload, "starts_at", in.StartsAt)
+	setString(payload, "ends_at", in.EndsAt)
+	setString(payload, "timezone", in.Timezone)
+	setString(payload, "address", in.Address)
+	setFloat(payload, "latitude", in.Latitude)
+	setFloat(payload, "longitude", in.Longitude)
+	setString(payload, "description", in.Description)
+	setString(payload, "notes", in.Notes)
+	setString(payload, "website", in.Website)
+	setFloat(payload, "price", in.Price)
+	setString(payload, "currency", in.Currency)
+	return payload
+}
+
+func hostingCreatePayload(in hostingCreateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "starts_at", in.StartsAt)
+	setString(payload, "ends_at", in.EndsAt)
+	setString(payload, "timezone", in.Timezone)
+	setString(payload, "address", in.Address)
+	setFloat(payload, "latitude", in.Latitude)
+	setFloat(payload, "longitude", in.Longitude)
+	setString(payload, "description", in.Description)
+	setString(payload, "room_type", in.RoomType)
+	setString(payload, "room_number", in.RoomNumber)
+	setString(payload, "website", in.Website)
+	setFloat(payload, "price", in.Price)
+	setString(payload, "currency", in.Currency)
+	return payload
+}
+
+func transportationCreatePayload(in transportationCreateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "transportation_type", in.TransportationType)
+	setString(payload, "departure_description", in.DepartureDescription)
+	setString(payload, "departure_at", in.DepartureAt)
+	setString(payload, "departure_timezone", in.DepartureTimezone)
+	setString(payload, "departure_address", in.DepartureAddress)
+	setFloat(payload, "departure_latitude", in.DepartureLatitude)
+	setFloat(payload, "departure_longitude", in.DepartureLongitude)
+	setString(payload, "arrival_description", in.ArrivalDescription)
+	setString(payload, "arrival_at", in.ArrivalAt)
+	setString(payload, "arrival_timezone", in.ArrivalTimezone)
+	setString(payload, "arrival_address", in.ArrivalAddress)
+	setFloat(payload, "arrival_latitude", in.ArrivalLatitude)
+	setFloat(payload, "arrival_longitude", in.ArrivalLongitude)
+	setString(payload, "description", in.Description)
+	setString(payload, "notes", in.Notes)
+	setString(payload, "company", in.Company)
+	setString(payload, "transport_number", in.TransportNumber)
+	setString(payload, "vehicle_description", in.VehicleDescription)
+	setFloat(payload, "price", in.Price)
+	setString(payload, "currency", in.Currency)
+	return payload
+}
+
+func cloneData(data map[string]any) map[string]any {
+	payload := make(map[string]any, len(data))
+	for key, value := range data {
+		payload[key] = value
+	}
+	return payload
+}
+
+func setString(payload map[string]any, key, value string) {
+	if strings.TrimSpace(value) != "" {
+		payload[key] = value
+	}
+}
+
+func setFloat(payload map[string]any, key string, value *float64) {
+	if value != nil {
+		payload[key] = *value
+	}
+}
+
+func setBool(payload map[string]any, key string, value *bool) {
+	if value != nil {
+		payload[key] = *value
+	}
+}
+
+func setInt(payload map[string]any, key string, value *int) {
+	if value != nil {
+		payload[key] = *value
+	}
 }
 
 func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
@@ -247,15 +536,17 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 		}
 		return toolOutput(s.do(ctx, req, "GET", fmt.Sprintf(spec.DetailPath, apiPathSegment(in.TripID), apiPathSegment(in.ID)), spec.responseQuery(nil), nil, spec.Title+" "+in.ID))
 	})
-	addTool(server, toolName("tripsy", spec.Prefix, "create"), "Create "+spec.Title, "Create a Tripsy "+strings.ToLower(spec.Title)+". "+spec.CreateAdvice, additive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceDataInput) (*mcp.CallToolResult, any, error) {
-		if strings.TrimSpace(in.TripID) == "" {
-			return nil, nil, fmt.Errorf("trip_id is required")
-		}
-		if len(in.Data) == 0 {
-			return nil, nil, fmt.Errorf("data is required")
-		}
-		return toolOutput(s.do(ctx, req, "POST", fmt.Sprintf(spec.ListPath, apiPathSegment(in.TripID)), spec.responseQuery(nil), in.Data, spec.Title+" created"))
-	})
+	if !spec.SkipCreate {
+		addTool(server, toolName("tripsy", spec.Prefix, "create"), "Create "+spec.Title, "Create a Tripsy "+strings.ToLower(spec.Title)+". "+spec.CreateAdvice, additive(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceDataInput) (*mcp.CallToolResult, any, error) {
+			if strings.TrimSpace(in.TripID) == "" {
+				return nil, nil, fmt.Errorf("trip_id is required")
+			}
+			if len(in.Data) == 0 {
+				return nil, nil, fmt.Errorf("data is required")
+			}
+			return toolOutput(s.do(ctx, req, "POST", fmt.Sprintf(spec.ListPath, apiPathSegment(in.TripID)), spec.responseQuery(nil), in.Data, spec.Title+" created"))
+		})
+	}
 	addTool(server, toolName("tripsy", spec.Prefix, "update"), "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id.", idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")

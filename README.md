@@ -176,7 +176,7 @@ TRIPSY_API_BASE=https://api.tripsy.app
 
 With those values, unauthenticated requests to `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
 
-The MCP server exposes typed tools such as `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
+The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
@@ -185,9 +185,9 @@ Use the CLI when you want direct terminal commands, shell scripts, or human-read
 ```sh
 tripsy me show
 tripsy trips list
-tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome
+tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
 tripsy activities list --trip 42
-tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --latitude 41.8902 --longitude 12.4922
+tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --address "Piazza del Colosseo, 1, 00184 Rome, Italy" --latitude 41.8902 --longitude 12.4922
 tripsy transportations create --trip 42 --name "Flight to Rome" --transportation-type airplane --departure-description JFK --arrival-description FCO
 tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR --date 2026-06-03T20:00:00Z
 tripsy request GET /v1/me --json
@@ -205,7 +205,62 @@ When building a Tripsy itinerary for a user or agent workflow:
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation endpoint so Tripsy's map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar point-to-point movement.
+- For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - Choose the most specific supported category slug for every activity.
+
+Avoid these common itinerary mistakes:
+
+- Do not use `unsplash.com/photos/...` as `cover_image_url`.
+- Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
+- Do not put hotels or lodging into activities.
+- Do not put transfers into activities.
+- Do not omit coordinates when a location is known.
+- Do not use unsupported `activity_type` values such as `sightseeing`.
+
+Golden path payload shape:
+
+```json
+{
+  "trip": {
+    "name": "Rome",
+    "timezone": "Europe/Rome",
+    "starts_at": "2026-06-01",
+    "ends_at": "2026-06-05",
+    "cover_image_url": "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
+  },
+  "hosting": {
+    "name": "Hotel Eden",
+    "starts_at": "2026-06-01T14:00:00Z",
+    "ends_at": "2026-06-05T11:00:00Z",
+    "timezone": "Europe/Rome",
+    "address": "Via Ludovisi 49, 00187 Rome, Italy",
+    "latitude": 41.9081,
+    "longitude": 12.4882
+  },
+  "activity": {
+    "name": "Colosseum Tour",
+    "activity_type": "tour",
+    "starts_at": "2026-06-03T09:00:00Z",
+    "ends_at": "2026-06-03T11:00:00Z",
+    "timezone": "Europe/Rome",
+    "address": "Piazza del Colosseo, 1, 00184 Rome, Italy",
+    "latitude": 41.8902,
+    "longitude": 12.4922
+  },
+  "transfer": {
+    "name": "Transfer to Hotel Eden",
+    "transportation_type": "roadtrip",
+    "departure_description": "Rome Fiumicino Airport",
+    "departure_address": "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+    "departure_latitude": 41.8003,
+    "departure_longitude": 12.2389,
+    "arrival_description": "Hotel Eden",
+    "arrival_address": "Via Ludovisi 49, 00187 Rome, Italy",
+    "arrival_latitude": 41.9081,
+    "arrival_longitude": 12.4882
+  }
+}
+```
 
 Activity category slugs:
 

@@ -101,6 +101,7 @@ func NewWithClientOptions(client *api.Client, store *config.Store, opts Options)
 
 func (s *service) register(server *mcp.Server) {
 	addTool(server, toolName("tripsy", "status"), "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
+	addTool(server, toolName("tripsy", "itinerary", "guidance"), "Tripsy Itinerary Guidance", "Return concise agent guidance for creating high-quality Tripsy trips, including direct Unsplash cover images, item granularity, coordinates, lodging, transportation, and transfer rules.", readOnly(), s.itineraryGuidance)
 	if !s.disableRawRequest {
 		addTool(server, toolName("tripsy", "raw_request"), "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
 	}
@@ -110,7 +111,7 @@ func (s *service) register(server *mcp.Server) {
 
 	addTool(server, toolName("tripsy", "trips", "list"), "List Trips", "List Tripsy trips. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsList)
 	addTool(server, toolName("tripsy", "trips", "show"), "Show Trip", "Fetch one Tripsy trip by id.", readOnly(), s.tripShow)
-	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For destination trips, set cover_image_url to a direct images.unsplash.com URL when available.", additive(), s.tripCreate)
+	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For planned itineraries, include name, timezone, starts_at, ends_at, and cover_image_url. For leisure trips, cover_image_url should be a destination-specific direct https://images.unsplash.com/photo-... URL, not an unsplash.com/photos page URL. Use date strings for trip starts_at/ends_at such as 2026-06-01.", additive(), s.tripCreate)
 	addTool(server, toolName("tripsy", "trips", "update"), "Update Trip", "Update a Tripsy trip by id.", idempotentWrite(), s.tripUpdate)
 	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
 
@@ -124,9 +125,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:  "activityType",
 		FilterHint:   activityCategoryHint,
 		Description:  "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
-		CreateAdvice: "Set activity_type to the most specific supported slug, and include latitude/longitude for map-ready location items.",
+		CreateAdvice: "Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not bundle multiple stops into one activity.",
 		ExcludeData:  true,
+		SkipCreate:   true,
 	})
+	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not use unsupported values such as sightseeing. "+activityCategoryHint, additive(), s.activityCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:       "hostings",
 		Title:        "Hosting",
@@ -134,9 +137,11 @@ func (s *service) register(server *mcp.Server) {
 		ListPath:     "/v1/trip/%s/hostings",
 		DetailPath:   "/v1/trip/%s/hosting/%s",
 		Description:  "Hotel and lodging plans.",
-		CreateAdvice: "Use hostings for hotels and lodging rather than activities. Include address and latitude/longitude when known.",
+		CreateAdvice: "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, dates, and timezone when known.",
 		ExcludeData:  true,
+		SkipCreate:   true,
 	})
+	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:       "transportations",
 		Title:        "Transportation",
@@ -147,9 +152,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:  "transportationType",
 		FilterHint:   transportationCategoryHint,
 		Description:  "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
-		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known.",
+		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
 		ExcludeData:  true,
+		SkipCreate:   true,
 	})
+	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:       "expenses",
 		Title:        "Expense",
