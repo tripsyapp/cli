@@ -26,7 +26,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
-- For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, and omit `name` unless the user provided one.
+- For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
 - For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 
 ## Avoid

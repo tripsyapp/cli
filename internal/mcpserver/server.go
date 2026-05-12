@@ -152,11 +152,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:  "transportationType",
 		FilterHint:   transportationCategoryHint,
 		Description:  "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
-		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
+		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
 		ExcludeData:  true,
 		SkipCreate:   true,
 	})
-	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
+	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:       "expenses",
 		Title:        "Expense",

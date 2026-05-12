@@ -83,14 +83,14 @@ type transportationCreateInput struct {
 	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known."`
 	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure IANA timezone."`
 	DepartureAddress     string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
-	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for transfer activities when known."`
-	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for transfer activities when known."`
+	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for flight airports and transfer activities when known."`
+	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for flight airports and transfer activities when known."`
 	ArrivalDescription   string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For flights, use the arrival airport IATA code such as JFK or FCO. For transfers, include the real place name."`
 	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known."`
 	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival IANA timezone."`
 	ArrivalAddress       string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
-	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for transfer activities when known."`
-	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for transfer activities when known."`
+	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for flight airports and transfer activities when known."`
+	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for flight airports and transfer activities when known."`
 	Description          string         `json:"description,omitempty" jsonschema:"Optional transportation description."`
 	Notes                string         `json:"notes,omitempty" jsonschema:"Optional notes."`
 	Company              string         `json:"company,omitempty" jsonschema:"Carrier, operator, or transfer company."`
@@ -235,7 +235,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific supported activity_type slug.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
 		"Use transportations for point-to-point movement.",
-		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, and omit name unless the user provided one.",
+		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
 		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
 		"Use exact UTC ISO-8601 timestamps for timed items and set the relevant local timezone.",
 		"Add address, latitude, and longitude for map-relevant activities, hostings, and transportation endpoints.",
