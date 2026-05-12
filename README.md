@@ -102,16 +102,7 @@ Tripsy operates a public MCP server at `https://mcp.tripsy.app/mcp`. OAuth-capab
 
 Example MCP client configuration:
 
-```json
-{
-  "mcpServers": {
-    "tripsy": {
-      "type": "http",
-      "url": "https://mcp.tripsy.app/mcp"
-    }
-  }
-}
-```
+<img width="2778" height="2218" alt="CleanShot 2026-05-11 at 21 06 30@2x" src="https://github.com/user-attachments/assets/46f9aaf0-b6ed-4b17-9deb-ad3cf0aefd16" />
 
 On first use, the client opens the Tripsy OAuth consent screen. After approval, the client stores the bearer token and reuses it for every request.
 
