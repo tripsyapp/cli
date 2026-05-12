@@ -2,6 +2,8 @@
 
 `tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`. The project also ships `tripsy-mcp`, a Model Context Protocol server that exposes typed tools for core Tripsy account and trip workflows.
 
+API documentation is available at [docs.api.tripsy.app](https://docs.api.tripsy.app).
+
 The CLI follows the same practical shape as [Basecamp CLI](https://github.com/basecamp/basecamp-cli):
 
 - usable human output in a terminal
