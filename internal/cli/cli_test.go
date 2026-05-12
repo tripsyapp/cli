@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -153,6 +154,100 @@ func TestTripSubresourceCommandsExcludeDocumentsAndEmails(t *testing.T) {
 						t.Fatalf("%s(%v) failed: %v", spec.Plural, tt.args, err)
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestTripSubresourceCreatePreservesDatetimeFlagValues(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		spec resourceSpec
+		args []string
+		want map[string]any
+	}{
+		{
+			name: "hosting",
+			spec: hostingResource,
+			args: []string{
+				"create",
+				"--trip", "42",
+				"--name", "TEST",
+				"--starts-at", "2026-12-01T10:00:00Z",
+				"--ends-at", "2026-12-02T10:00:00Z",
+				"--timezone", "Europe/Rome",
+			},
+			want: map[string]any{
+				"name":      "TEST",
+				"starts_at": "2026-12-01T10:00:00Z",
+				"ends_at":   "2026-12-02T10:00:00Z",
+				"timezone":  "Europe/Rome",
+			},
+		},
+		{
+			name: "activity",
+			spec: activityResource,
+			args: []string{
+				"create",
+				"--trip", "42",
+				"--name", "Tour",
+				"--starts-at", "2026-12-01T10:00:00+02:00",
+				"--ends-at", "2026-12-01T12:00:00+02:00",
+				"--timezone", "Europe/Rome",
+			},
+			want: map[string]any{
+				"name":      "Tour",
+				"starts_at": "2026-12-01T10:00:00+02:00",
+				"ends_at":   "2026-12-01T12:00:00+02:00",
+				"timezone":  "Europe/Rome",
+			},
+		},
+		{
+			name: "transportation",
+			spec: transportationResource,
+			args: []string{
+				"create",
+				"--trip", "42",
+				"--name", "Flight",
+				"--departure-at", "2026-12-01T10:00:00.123456Z",
+				"--arrival-at", "2026-12-01T12:00:00.123456Z",
+				"--departure-timezone", "Europe/Rome",
+				"--arrival-timezone", "Europe/Rome",
+			},
+			want: map[string]any{
+				"name":               "Flight",
+				"departure_at":       "2026-12-01T10:00:00.123456Z",
+				"arrival_at":         "2026-12-01T12:00:00.123456Z",
+				"departure_timezone": "Europe/Rome",
+				"arrival_timezone":   "Europe/Rome",
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Header.Get("Content-Type"); got != "application/json" {
+					t.Errorf("Content-Type = %q, want application/json", got)
+				}
+				raw, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var payload map[string]any
+				if err := json.Unmarshal(raw, &payload); err != nil {
+					t.Fatalf("request body is not JSON: %s", raw)
+				}
+				for key, want := range tt.want {
+					if payload[key] != want {
+						t.Errorf("%s = %v, want %v", key, payload[key], want)
+					}
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"id":9,"name":"ok"}`))
+			})
+			defer cleanup()
+
+			if err := a.resource(context.Background(), tt.spec, tt.args); err != nil {
+				t.Fatalf("%s create failed: %v", tt.spec.Plural, err)
 			}
 		})
 	}

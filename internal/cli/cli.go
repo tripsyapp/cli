@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/tripsyapp/cli/internal/api"
 	"github.com/tripsyapp/cli/internal/config"
@@ -408,6 +409,9 @@ func parseValue(value string) any {
 	if value == "" {
 		return ""
 	}
+	if shouldKeepStringValue(value) {
+		return value
+	}
 
 	var parsed any
 	decoder := json.NewDecoder(strings.NewReader(value))
@@ -416,6 +420,11 @@ func parseValue(value string) any {
 		return parsed
 	}
 	return value
+}
+
+func shouldKeepStringValue(value string) bool {
+	_, err := time.Parse(time.RFC3339Nano, value)
+	return err == nil
 }
 
 func commonListQuery(fs *flagSet) url.Values {
