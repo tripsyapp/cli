@@ -21,7 +21,8 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Use exact ISO-8601 UTC datetimes for timed items, for example `2026-06-03T09:00:00Z`.
 - For trip dates, use date strings such as `2026-06-01`.
 - When creating a destination trip, choose a beautiful destination-specific Unsplash image and set it as `cover_image_url`.
-- Use the direct `images.unsplash.com/photo-...?...&ixlib=rb-...` URL for trip covers, not the Unsplash page URL. Tripsy will add the needed rendering parameters.
+- Use a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. Tripsy will add the needed rendering parameters.
+- The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not use the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
 - For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
@@ -35,6 +36,7 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 Avoid these common itinerary mistakes:
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
+- Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
@@ -211,7 +213,7 @@ tripsy trips show TRIP_ID --json
 Create a trip:
 
 ```sh
-tripsy trips create --name "Italy" --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-..." --json
+tripsy trips create --name "Italy" --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0" --json
 ```
 
 Update a trip:
@@ -232,7 +234,8 @@ Common trip fields: `name`, `timezone`, `hidden`, `description`, `starts_at`, `e
 Trip covers:
 
 - Prefer a destination-specific Unsplash image for leisure trips.
-- Use the direct `images.unsplash.com` image URL, including Unsplash metadata query parameters such as `ixid` and `ixlib`.
+- Use the direct `images.unsplash.com` image URL copied from the actual image result, including Unsplash metadata query parameters such as `ixid` and `ixlib`.
+- Valid cover URLs use the `photo-<numeric timestamp>-<asset hash>` path format, for example `photo-1562869929-bda0650edb1f`; short ID paths such as `photo-nWdsya5_Yms` are invalid.
 - Do not add crop, width, quality, or format parameters unless the user explicitly asks; the Tripsy app derives the right display parameters.
 
 ## Itinerary Resources

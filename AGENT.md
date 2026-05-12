@@ -20,7 +20,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 
 - Set trip dates when planning a day-by-day itinerary.
 - Choose a destination-specific Unsplash image for leisure trips and set it as `cover_image_url`.
-- Store the direct `images.unsplash.com/photo-...?...&ixlib=rb-...` URL. Do not store the Unsplash page URL.
+- Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`.
+- The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not bundle multiple places into one activity.
 - Use start and end times when possible. Send timed values as UTC ISO-8601 strings and set the local `timezone`.
 - Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
@@ -32,6 +33,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 ## Avoid
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
+- Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.

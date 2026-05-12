@@ -169,7 +169,7 @@ TRIPSY_API_BASE=https://api.tripsy.app
 
 With those values, unauthenticated requests to `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
 
-The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a direct Unsplash `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
+The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a real direct Unsplash CDN `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
@@ -192,7 +192,8 @@ When building a Tripsy itinerary for a user or agent workflow:
 
 - Set trip dates whenever the itinerary needs day-by-day planning. Use trip date strings such as `2026-06-01`.
 - Choose a high-quality destination-specific Unsplash image for the trip cover when possible, and set it with `cover_image_url`.
-- Store the direct `images.unsplash.com/photo-...?...&ixlib=rb-...` URL, not the Unsplash page URL. The app will add its own display parameters.
+- Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. The app will add its own display parameters.
+- The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
 - Create one Tripsy item per actual stop, reservation, meal, tour, or activity. Do not combine a full day or multiple places into one activity.
 - Use exact ISO-8601 UTC datetimes for timed items, plus the local `timezone`, for example `2026-06-03T09:00:00Z`.
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation endpoint so Tripsy's map is populated.
@@ -205,6 +206,7 @@ When building a Tripsy itinerary for a user or agent workflow:
 Avoid these common itinerary mistakes:
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
+- Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.

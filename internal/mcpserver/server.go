@@ -111,7 +111,7 @@ func (s *service) register(server *mcp.Server) {
 
 	addTool(server, toolName("tripsy", "trips", "list"), "List Trips", "List Tripsy trips. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsList)
 	addTool(server, toolName("tripsy", "trips", "show"), "Show Trip", "Fetch one Tripsy trip by id.", readOnly(), s.tripShow)
-	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For planned itineraries, include name, timezone, starts_at, ends_at, and cover_image_url. For leisure trips, cover_image_url should be a destination-specific direct https://images.unsplash.com/photo-... URL, not an unsplash.com/photos page URL. Use date strings for trip starts_at/ends_at such as 2026-06-01.", additive(), s.tripCreate)
+	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For planned itineraries, include name, timezone, starts_at, ends_at, and cover_image_url. For leisure trips, cover_image_url should be a destination-specific real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Do not use unsplash.com/photos/... pages, and do not turn short photo IDs such as nWdsya5_Yms into images.unsplash.com/photo-nWdsya5_Yms URLs. Use date strings for trip starts_at/ends_at such as 2026-06-01.", additive(), s.tripCreate)
 	addTool(server, toolName("tripsy", "trips", "update"), "Update Trip", "Update a Tripsy trip by id.", idempotentWrite(), s.tripUpdate)
 	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
 

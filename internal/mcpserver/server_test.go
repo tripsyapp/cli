@@ -73,11 +73,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
-	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "not an unsplash.com/photos page URL") {
+	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "photo-nWdsya5_Yms") {
 		t.Fatalf("trips create description should mention Unsplash cover_image_url guidance: %q", tripsCreate.Description)
 	}
 	tripsCreateSchema := toolSchemaString(t, tripsCreate)
-	if !strings.Contains(tripsCreateSchema, "cover_image_url") || !strings.Contains(tripsCreateSchema, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreateSchema, "starts_at") {
+	if !strings.Contains(tripsCreateSchema, "cover_image_url") || !strings.Contains(tripsCreateSchema, "numeric timestamp") || !strings.Contains(tripsCreateSchema, "photo-nWdsya5_Yms") || !strings.Contains(tripsCreateSchema, "starts_at") {
 		t.Fatalf("trips create input schema should expose typed itinerary fields: %s", tripsCreateSchema)
 	}
 
@@ -118,6 +118,7 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 	for _, want := range []string{
 		"cover_image_url",
 		"https://images.unsplash.com/photo-",
+		"photo-nWdsya5_Yms",
 		"unsplash.com/photos",
 		"one Tripsy item per actual stop",
 		"airport IATA codes",
@@ -232,6 +233,29 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	data := structured["data"].(map[string]any)
 	if data["name"] != "Copenhagen" {
 		t.Fatalf("data.name = %v, want Copenhagen", data["name"])
+	}
+}
+
+func TestTripCreateRejectsShortUnsplashPhotoID(t *testing.T) {
+	var called atomic.Int32
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		t.Errorf("API should not be called with an invalid cover_image_url")
+	}))
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_trips_create", map[string]any{
+		"name":            "Copenhagen",
+		"cover_image_url": "https://images.unsplash.com/photo-nWdsya5_Yms?ixlib=rb-4.1.0",
+	})
+	if !res.IsError {
+		t.Fatalf("expected tool error for invalid cover_image_url, got: %s", toolText(res))
+	}
+	if !strings.Contains(toolText(res), "numeric Unsplash photo asset path") || !strings.Contains(toolText(res), "photo-nWdsya5_Yms") {
+		t.Fatalf("error text = %q, want specific Unsplash URL guidance", toolText(res))
+	}
+	if called.Load() != 0 {
+		t.Fatalf("handler called %d times, want 0", called.Load())
 	}
 }
 

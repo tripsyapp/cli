@@ -129,6 +129,30 @@ func TestTripsCommandsExcludeDocumentsAndEmails(t *testing.T) {
 	}
 }
 
+func TestTripsCreateRejectsShortUnsplashPhotoID(t *testing.T) {
+	var called bool
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		t.Errorf("API should not be called with an invalid cover_image_url")
+	})
+	defer cleanup()
+
+	err := a.trips(context.Background(), []string{
+		"create",
+		"--name", "Copenhagen",
+		"--cover-image-url", "https://images.unsplash.com/photo-nWdsya5_Yms?ixlib=rb-4.1.0",
+	})
+	if err == nil {
+		t.Fatal("trips create error = nil, want invalid cover_image_url error")
+	}
+	if !strings.Contains(err.Error(), "numeric Unsplash photo asset path") || !strings.Contains(err.Error(), "photo-nWdsya5_Yms") {
+		t.Fatalf("error = %q, want specific Unsplash URL guidance", err.Error())
+	}
+	if called {
+		t.Fatal("API was called, want validation failure before request")
+	}
+}
+
 func TestTripSubresourceCommandsExcludeDocumentsAndEmails(t *testing.T) {
 	for _, spec := range []resourceSpec{activityResource, hostingResource, transportationResource} {
 		t.Run(spec.Plural, func(t *testing.T) {

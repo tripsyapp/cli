@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/tripsyapp/cli/internal/coverimage"
 )
 
 const activityCategoryHint = "Supported activity_type slugs: concert, fit, general, kids, museum, note, relax, restaurant, shopping, theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium, atm, bakery, bank, beach, brewery, campground, evCharger, fireStation, fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina, movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice, publicTransport, restroom, school, stadium, university, winery, zoo."
@@ -32,7 +33,7 @@ type tripCreateInput struct {
 	Description   string         `json:"description,omitempty" jsonschema:"Optional trip description."`
 	StartsAt      string         `json:"starts_at,omitempty" jsonschema:"Trip start date as YYYY-MM-DD, for example 2026-06-01."`
 	EndsAt        string         `json:"ends_at,omitempty" jsonschema:"Trip end date as YYYY-MM-DD, for example 2026-06-15."`
-	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific direct Unsplash image URL. Must start with https://images.unsplash.com/photo-..., not an unsplash.com/photos page URL."`
+	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific real direct Unsplash CDN URL copied from an image result, for example https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Must use an images.unsplash.com/photo-<numeric timestamp>-<asset hash> path; do not use unsplash.com/photos/... or short IDs such as photo-nWdsya5_Yms."`
 	HasDates      *bool          `json:"has_dates,omitempty" jsonschema:"Whether the trip has explicit dates."`
 	NumberOfDays  *int           `json:"number_of_days,omitempty" jsonschema:"Number of days for an undated trip."`
 	Hidden        *bool          `json:"hidden,omitempty" jsonschema:"Whether the trip should be hidden."`
@@ -230,7 +231,8 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 	rules := []string{
 		"Create the trip first with name, timezone, starts_at, ends_at, and cover_image_url when planning dated travel.",
 		"For leisure or destination trips, choose a destination-specific direct Unsplash image URL for cover_image_url.",
-		"cover_image_url must be an https://images.unsplash.com/photo-... URL, not an unsplash.com/photos page URL.",
+		"cover_image_url must be a real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0.",
+		"The images.unsplash.com path must be photo-<numeric timestamp>-<asset hash>; never use unsplash.com/photos/... pages or short IDs such as https://images.unsplash.com/photo-nWdsya5_Yms.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific supported activity_type slug.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
@@ -242,6 +244,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 	}
 	doNot := []string{
 		"Do not use unsplash.com/photos/... as cover_image_url.",
+		"Do not invent or transform Unsplash photo IDs into images.unsplash.com URLs; copy the real numeric photo asset URL.",
 		"Do not create one activity named Day 1 itinerary or similar that contains multiple stops.",
 		"Do not put hotels or lodging into activities.",
 		"Do not put transfers into activities.",
@@ -342,6 +345,9 @@ func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in t
 	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
+	if err := validateCoverImageURL(payload); err != nil {
+		return nil, nil, err
+	}
 	return toolOutput(s.do(ctx, req, "POST", "/v1/trips", tripDataQuery(nil), payload, "Trip created"))
 }
 
@@ -351,6 +357,9 @@ func (s *service) tripUpdate(ctx context.Context, req *mcp.CallToolRequest, in t
 	}
 	if len(in.Data) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
+	}
+	if err := validateCoverImageURL(in.Data); err != nil {
+		return nil, nil, err
 	}
 	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), in.Data, "Trip updated"))
 }
@@ -407,6 +416,18 @@ func tripCreatePayload(in tripCreateInput) map[string]any {
 	setInt(payload, "number_of_days", in.NumberOfDays)
 	setBool(payload, "hidden", in.Hidden)
 	return payload
+}
+
+func validateCoverImageURL(payload map[string]any) error {
+	value, ok := payload["cover_image_url"]
+	if !ok || value == nil {
+		return nil
+	}
+	raw, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("cover_image_url must be a string. %s", coverimage.DirectUnsplashGuidance)
+	}
+	return coverimage.ValidateDirectUnsplashURL(raw)
 }
 
 func activityCreatePayload(in activityCreateInput) map[string]any {
