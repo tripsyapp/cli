@@ -28,6 +28,7 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Use the most specific supported category slug for `activity_type`; do not default to `general` or `tour` when a better category exists.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
+- For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, and omit `name` unless the user provided one.
 - For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - For destructive commands, state what will be deleted before running the command when the user has not already been explicit.
 
@@ -319,6 +320,8 @@ airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
 ```
 
 Use these slugs with `transportation_type` on `tripsy transportations`.
+
+For flights, use `airplane`, put the airport IATA codes in `departure_description` and `arrival_description`, and omit `name` unless the user provided one.
 
 Activities:
 

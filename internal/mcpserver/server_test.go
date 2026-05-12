@@ -96,11 +96,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	transportationsCreate := findTool(res.Tools, "tripsy_transportations_create")
-	if !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") {
-		t.Fatalf("transportations create description should mention transfer roadtrip endpoint guidance: %q", transportationsCreate.Description)
+	if !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") || !strings.Contains(transportationsCreate.Description, "airport IATA codes") || !strings.Contains(transportationsCreate.Description, "omit name") {
+		t.Fatalf("transportations create description should mention flight IATA and transfer roadtrip endpoint guidance: %q", transportationsCreate.Description)
 	}
 	transportationsCreateSchema := toolSchemaString(t, transportationsCreate)
-	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
+	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
 		t.Fatalf("transportations create input schema should expose typed transfer fields: %s", transportationsCreateSchema)
 	}
 }
@@ -120,6 +120,8 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 		"https://images.unsplash.com/photo-",
 		"unsplash.com/photos",
 		"one Tripsy item per actual stop",
+		"airport IATA codes",
+		"omit name unless the user provided one",
 		"transportation_type roadtrip",
 		"Do not use unsupported activity_type values such as sightseeing",
 	} {
