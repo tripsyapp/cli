@@ -19,6 +19,8 @@ import (
 	"github.com/tripsyapp/cli/internal/mcpserver"
 )
 
+const openAIAppsChallengeToken = "aYBlXTk9xrrpyW7v1pieVqn9w9BxXjRLWPak0uJtkqc"
+
 func main() {
 	var opts mcpserver.Options
 	var transport string
@@ -126,6 +128,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
+	mux.HandleFunc("GET /.well-known/openai-apps-challenge", openAIAppsChallenge)
 	if oauthConfig.enabled() {
 		mux.Handle(oauthConfig.resourceMetadataPath, auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 			Resource:               joinURLPath(oauthConfig.publicURL, "/"),
@@ -214,6 +217,12 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok\n"))
+}
+
+func openAIAppsChallenge(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(openAIAppsChallengeToken + "\n"))
 }
 
 func versionString() string {

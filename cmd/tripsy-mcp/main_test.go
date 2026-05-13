@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,5 +46,26 @@ func TestRegisterMCPHTTPHandlersDoesNotDuplicateRoot(t *testing.T) {
 
 	if len(paths) != 1 || paths[0] != "/" {
 		t.Fatalf("registered paths = %v, want [/]", paths)
+	}
+}
+
+func TestOpenAIAppsChallenge(t *testing.T) {
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openai-apps-challenge", nil)
+
+	openAIAppsChallenge(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if got := res.Header().Get("Content-Type"); got != "text/plain; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/plain; charset=utf-8", got)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(body), openAIAppsChallengeToken+"\n"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
 	}
 }
