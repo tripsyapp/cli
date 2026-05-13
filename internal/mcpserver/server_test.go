@@ -59,6 +59,16 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		if !allowedToolName.MatchString(tool.Name) {
 			t.Fatalf("tool name %q contains characters rejected by common MCP clients", tool.Name)
 		}
+		outputSchema := outputSchemaString(t, tool)
+		if !strings.Contains(outputSchema, "summary") || !strings.Contains(outputSchema, "status_code") || !strings.Contains(outputSchema, "data") {
+			t.Fatalf("tool %q output schema should describe the standard response envelope: %s", tool.Name, outputSchema)
+		}
+		if tool.Annotations != nil && tool.Annotations.OpenWorldHint != nil && !*tool.Annotations.OpenWorldHint && !strings.Contains(tool.Description, "Closed-world:") {
+			t.Fatalf("tool %q description should explain closed-world safety hint: %q", tool.Name, tool.Description)
+		}
+		if tool.Annotations != nil && tool.Annotations.DestructiveHint != nil && *tool.Annotations.DestructiveHint && !strings.Contains(tool.Description, "Destructive:") {
+			t.Fatalf("tool %q description should explain destructive safety hint: %q", tool.Name, tool.Description)
+		}
 	}
 
 	activitiesList := findTool(res.Tools, "tripsy_activities_list")
@@ -707,6 +717,18 @@ func toolSchemaString(t *testing.T, tool *mcp.Tool) string {
 	data, err := json.Marshal(tool.InputSchema)
 	if err != nil {
 		t.Fatalf("marshal tool schema for %s: %v", tool.Name, err)
+	}
+	return string(data)
+}
+
+func outputSchemaString(t *testing.T, tool *mcp.Tool) string {
+	t.Helper()
+	if tool.OutputSchema == nil {
+		t.Fatalf("tool %s is missing output schema", tool.Name)
+	}
+	data, err := json.Marshal(tool.OutputSchema)
+	if err != nil {
+		t.Fatalf("marshal tool output schema for %s: %v", tool.Name, err)
 	}
 	return string(data)
 }

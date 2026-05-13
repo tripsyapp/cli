@@ -176,11 +176,44 @@ func toolName(parts ...string) string {
 
 func addTool[In, Out any](server *mcp.Server, name, title, description string, annotations *mcp.ToolAnnotations, handler mcp.ToolHandlerFor[In, Out]) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        name,
-		Title:       title,
-		Description: description,
-		Annotations: annotations,
+		Name:         name,
+		Title:        title,
+		Description:  toolDescription(description, annotations),
+		Annotations:  annotations,
+		OutputSchema: tripsyToolOutputSchema(),
 	}, handler)
+}
+
+func tripsyToolOutputSchema() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "Standard Tripsy MCP tool response envelope.",
+		"properties": map[string]any{
+			"summary": map[string]any{
+				"type":        "string",
+				"description": "Short human-readable summary of the Tripsy operation result.",
+			},
+			"status_code": map[string]any{
+				"type":        "integer",
+				"description": "HTTP status code returned by the Tripsy API when the tool called the API.",
+			},
+			"data": map[string]any{
+				"description": "Tripsy API response payload or tool-specific structured data.",
+			},
+		},
+		"required": []string{"summary"},
+	}
+}
+
+func toolDescription(description string, annotations *mcp.ToolAnnotations) string {
+	if annotations == nil || annotations.OpenWorldHint == nil || *annotations.OpenWorldHint {
+		return description
+	}
+	reasons := []string{"Closed-world: this tool only interacts with the Tripsy API for the authenticated user's Tripsy account, not arbitrary external services or URLs."}
+	if annotations.DestructiveHint != nil && *annotations.DestructiveHint {
+		reasons = append(reasons, "Destructive: this tool can remove or broadly mutate Tripsy data, so confirm user intent before calling it.")
+	}
+	return description + " Safety: " + strings.Join(reasons, " ")
 }
 
 func (s *service) do(ctx context.Context, req *mcp.CallToolRequest, method, path string, query url.Values, body any, summary string) (any, error) {
