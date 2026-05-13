@@ -16,6 +16,8 @@ const activityCategoryHint = "Supported activity_type slugs: concert, fit, gener
 
 const transportationCategoryHint = "Supported transportation_type slugs: airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk."
 
+const tripAccessAndDateHint = "Trip list results include all trips accessible to the authenticated user: owned trips and trips shared through collaboration. Do not assume every listed trip is owned by the authenticated user; inspect owner/collaborators when ownership matters. For trip dates, has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if those fields are present."
+
 type emptyInput struct{}
 
 type statusInput struct {
@@ -110,7 +112,7 @@ type tripIDInput struct {
 }
 
 type listInput struct {
-	Fields        []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter."`
+	Fields        []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter. For trip lists, owner, has_dates, starts_at, and ends_at are always included so clients can distinguish owned vs collaboration trips and interpret undated trips correctly."`
 	FieldsExclude []string `json:"fields_exclude,omitempty" jsonschema:"Optional response field deny-list. Sent as the API fields! query parameter."`
 	UpdatedSince  string   `json:"updated_since,omitempty" jsonschema:"Optional ISO-8601 timestamp for incremental list filtering."`
 	Deleted       bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it."`
@@ -330,7 +332,7 @@ func (s *service) meUpdate(ctx context.Context, req *mcp.CallToolRequest, in dat
 }
 
 func (s *service) tripsList(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
-	return toolOutput(s.do(ctx, req, "GET", "/v1/trips", tripDataQuery(listQuery(in)), nil, "Trips"))
+	return toolOutput(s.do(ctx, req, "GET", "/v1/trips", tripDataQuery(tripListQuery(in)), nil, "Trips. "+tripAccessAndDateHint))
 }
 
 func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
@@ -609,6 +611,13 @@ func listQuery(in listInput) url.Values {
 	return query
 }
 
+func tripListQuery(in listInput) url.Values {
+	query := listQuery(in)
+	ensureFields(query, "owner", "has_dates", "starts_at", "ends_at")
+	removeFieldsExclude(query, "owner", "has_dates", "starts_at", "ends_at")
+	return query
+}
+
 func subresourceListQuery(in subresourceListInput) url.Values {
 	query := url.Values{}
 	addListQuery(query, in.Fields, in.FieldsExclude, in.UpdatedSince, in.Deleted)
@@ -642,6 +651,41 @@ func joinFields(fields []string) string {
 	}
 	sort.Strings(normalized)
 	return strings.Join(normalized, ",")
+}
+
+func ensureFields(query url.Values, fields ...string) {
+	if query == nil || query.Get("fields") == "" {
+		return
+	}
+	values := append([]string{}, query["fields"]...)
+	values = append(values, fields...)
+	if joined := joinFields(values); joined != "" {
+		query.Set("fields", joined)
+	}
+}
+
+func removeFieldsExclude(query url.Values, fields ...string) {
+	if query == nil || query.Get("fields!") == "" {
+		return
+	}
+	blocked := map[string]bool{}
+	for _, field := range fields {
+		blocked[field] = true
+	}
+	kept := make([]string, 0, len(query["fields!"]))
+	for _, value := range query["fields!"] {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" && !blocked[part] {
+				kept = append(kept, part)
+			}
+		}
+	}
+	if joined := joinFields(kept); joined != "" {
+		query.Set("fields!", joined)
+	} else {
+		query.Del("fields!")
+	}
 }
 
 var defaultTripDataFieldsExclude = []string{"documents", "emails"}

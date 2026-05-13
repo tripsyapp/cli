@@ -72,6 +72,15 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		t.Fatal("activities list should be marked read-only")
 	}
 
+	tripsList := findTool(res.Tools, "tripsy_trips_list")
+	if !strings.Contains(tripsList.Description, "shared through collaboration") || !strings.Contains(tripsList.Description, "has_dates is authoritative") || !strings.Contains(tripsList.Description, "ignore starts_at and ends_at") {
+		t.Fatalf("trips list description should mention collaboration ownership and has_dates guidance: %q", tripsList.Description)
+	}
+	tripsListSchema := toolSchemaString(t, tripsList)
+	if !strings.Contains(tripsListSchema, "owner") || !strings.Contains(tripsListSchema, "has_dates") || !strings.Contains(tripsListSchema, "undated trips") {
+		t.Fatalf("trips list input schema should preserve ownership/date context fields: %s", tripsListSchema)
+	}
+
 	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
 	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "photo-nWdsya5_Yms") {
 		t.Fatalf("trips create description should mention Unsplash cover_image_url guidance: %q", tripsCreate.Description)
@@ -102,6 +111,48 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	transportationsCreateSchema := toolSchemaString(t, transportationsCreate)
 	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "Required for flight airports") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
 		t.Fatalf("transportations create input schema should expose typed transfer fields: %s", transportationsCreateSchema)
+	}
+}
+
+func TestTripsListKeepsOwnershipAndDateContextFields(t *testing.T) {
+	var called atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %s, want GET", r.Method)
+		}
+		if r.URL.Path != "/v1/trips" {
+			t.Errorf("path = %s, want /v1/trips", r.URL.Path)
+		}
+		query := r.URL.Query()
+		if got := query.Get("fields"); got != "ends_at,has_dates,id,name,owner,starts_at" {
+			t.Errorf("fields = %q, want ownership/date context fields preserved", got)
+		}
+		if got := query.Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[{"id":42,"name":"Shared trip","has_dates":false,"starts_at":"2026-06-01","ends_at":"2026-06-03","owner":{"id":7}}]}`))
+	})
+	session, cleanup := connectTestSession(t, "test-token", handler)
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_trips_list", map[string]any{
+		"fields":         []string{"name", "id"},
+		"fields_exclude": []string{"owner", "has_dates"},
+	})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+
+	structured := structuredMap(t, res)
+	summary := fmt.Sprint(structured["summary"])
+	if !strings.Contains(summary, "shared through collaboration") || !strings.Contains(summary, "has_dates is authoritative") {
+		t.Fatalf("summary = %q, want collaboration and has_dates guidance", summary)
 	}
 }
 

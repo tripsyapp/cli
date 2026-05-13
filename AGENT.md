@@ -19,6 +19,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 ## Itinerary Shape
 
 - Set trip dates when planning a day-by-day itinerary.
+- Trip lists include owned trips and trips shared through collaboration. Do not assume every listed trip belongs to the authenticated user; inspect `owner` and collaborators when ownership matters.
+- `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - Choose a destination-specific Unsplash image for leisure trips and set it as `cover_image_url`.
 - Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.

@@ -20,6 +20,8 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Do not ask the user for passwords in chat. Ask them to run `tripsy auth login --username USERNAME` locally, or use `TRIPSY_TOKEN`.
 - Use exact ISO-8601 UTC datetimes for timed items, for example `2026-06-03T09:00:00Z`.
 - For trip dates, use date strings such as `2026-06-01`.
+- Trip lists include owned trips and trips shared through collaboration. Do not assume every listed trip belongs to the authenticated user; inspect `owner` and collaborator fields when ownership matters.
+- `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - When creating a destination trip, choose a beautiful destination-specific Unsplash image and set it as `cover_image_url`.
 - Use a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. Tripsy will add the needed rendering parameters.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not use the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
@@ -144,7 +146,7 @@ Most JSON output has this shape:
 }
 ```
 
-For list endpoints, `data.results` usually contains items. `tripsy trips list` also uses `data.results`, but the Tripsy API does not include `count` for that endpoint.
+For list endpoints, `data.results` usually contains items. `tripsy trips list` also uses `data.results`, but the Tripsy API does not include `count` for that endpoint. Trip results can include owned trips and trips shared through collaboration.
 
 For detail commands in human output, the CLI displays all fields returned by the API. For agents, prefer `--json` and inspect `data` directly.
 
@@ -230,6 +232,12 @@ tripsy trips delete TRIP_ID --json
 ```
 
 Common trip fields: `name`, `timezone`, `hidden`, `description`, `starts_at`, `ends_at`, `cover_gradient`, `cover_image_url`, `has_dates`, `number_of_days`, and `guest_invites`.
+
+Trip ownership and dates:
+
+- `trips list` returns owned trips and trips shared through collaboration.
+- Do not assume every listed trip belongs to the authenticated user; inspect `owner` and collaborators when ownership matters.
+- `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 
 Trip covers:
 

@@ -172,6 +172,8 @@ With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Aut
 
 The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a real direct Unsplash CDN `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
+Trip list results include all trips accessible to the authenticated user: trips owned by that user and trips shared through collaboration. Clients must inspect `owner` and collaborator fields before presenting a trip as owned by the current user. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present on the object.
+
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
 ## Examples
@@ -192,6 +194,8 @@ tripsy request GET /v1/me --json
 When building a Tripsy itinerary for a user or agent workflow:
 
 - Set trip dates whenever the itinerary needs day-by-day planning. Use trip date strings such as `2026-06-01`.
+- Trip lists include owned trips and trips shared through collaboration. Inspect `owner` and collaborators before treating a trip as owned by the authenticated user.
+- `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - Choose a high-quality destination-specific Unsplash image for the trip cover when possible, and set it with `cover_image_url`.
 - Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. The app will add its own display parameters.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
