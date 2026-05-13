@@ -59,6 +59,15 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		if !allowedToolName.MatchString(tool.Name) {
 			t.Fatalf("tool name %q contains characters rejected by common MCP clients", tool.Name)
 		}
+		if tool.Annotations == nil {
+			t.Fatalf("tool %q is missing annotations", tool.Name)
+		}
+		if tool.Annotations.OpenWorldHint == nil {
+			t.Fatalf("tool %q is missing openWorldHint", tool.Name)
+		}
+		if tool.Annotations.DestructiveHint == nil {
+			t.Fatalf("tool %q is missing destructiveHint", tool.Name)
+		}
 		outputSchema := outputSchemaString(t, tool)
 		if !strings.Contains(outputSchema, "summary") || !strings.Contains(outputSchema, "status_code") || !strings.Contains(outputSchema, "data") {
 			t.Fatalf("tool %q output schema should describe the standard response envelope: %s", tool.Name, outputSchema)

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -72,7 +74,10 @@ func main() {
 
 	switch strings.ToLower(strings.TrimSpace(transport)) {
 	case "", "stdio":
-		if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		if err := server.Run(context.Background(), &mcp.IOTransport{
+			Reader: os.Stdin,
+			Writer: explicitToolAnnotationsWriter{Writer: os.Stdout},
+		}); err != nil {
 			log.Fatal(err)
 		}
 	case "http", "streamable-http":
@@ -116,6 +121,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 		SessionTimeout: 30 * time.Minute,
 	})
 	var httpHandler http.Handler = handler
+	httpHandler = explicitToolAnnotationsHTTPHandler{next: httpHandler}
 	if requireBearer {
 		verifier := mcpserver.BearerTokenVerifier(info.APIBase)
 		authOptions := &auth.RequireBearerTokenOptions{}
@@ -144,6 +150,74 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 	paths := registerMCPHTTPHandlers(mux, path, httpHandler)
 	log.Printf("Tripsy MCP listening on http://%s%s (aliases=%s api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, strings.Join(paths, ","), info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
 	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+type explicitToolAnnotationsWriter struct {
+	Writer io.Writer
+}
+
+func (w explicitToolAnnotationsWriter) Close() error {
+	return nil
+}
+
+func (w explicitToolAnnotationsWriter) Write(data []byte) (int, error) {
+	normalized := mcpserver.NormalizeToolAnnotationsPayload(data)
+	n, err := w.Writer.Write(normalized)
+	if err != nil {
+		return 0, err
+	}
+	if n != len(normalized) {
+		return 0, io.ErrShortWrite
+	}
+	return len(data), nil
+}
+
+type explicitToolAnnotationsHTTPHandler struct {
+	next http.Handler
+}
+
+func (h explicitToolAnnotationsHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.next.ServeHTTP(w, r)
+		return
+	}
+	recorder := &toolAnnotationsResponseRecorder{
+		ResponseWriter: w,
+		header:         w.Header().Clone(),
+		statusCode:     http.StatusOK,
+	}
+	h.next.ServeHTTP(recorder, r)
+	payload := mcpserver.NormalizeToolAnnotationsPayload(recorder.body.Bytes())
+	for key := range w.Header() {
+		delete(w.Header(), key)
+	}
+	for key, values := range recorder.header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
+	w.WriteHeader(recorder.statusCode)
+	_, _ = w.Write(payload)
+}
+
+type toolAnnotationsResponseRecorder struct {
+	http.ResponseWriter
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func (r *toolAnnotationsResponseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *toolAnnotationsResponseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+}
+
+func (r *toolAnnotationsResponseRecorder) Write(data []byte) (int, error) {
+	return r.body.Write(data)
 }
 
 func normalizeHTTPPath(path string) string {

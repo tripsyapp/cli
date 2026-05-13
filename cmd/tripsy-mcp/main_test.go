@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,19 @@ func TestOpenAIAppsChallenge(t *testing.T) {
 	}
 	if got, want := string(body), openAIAppsChallengeToken+"\n"; got != want {
 		t.Fatalf("body = %q, want %q", got, want)
+	}
+}
+
+func TestExplicitToolAnnotationsHTTPHandlerNormalizesPostResponses(t *testing.T) {
+	handler := explicitToolAnnotationsHTTPHandler{next: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"tripsy_trips_create","annotations":{"destructiveHint":false,"openWorldHint":false}}]}}`))
+	})}
+
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/mcp", nil))
+
+	if !strings.Contains(res.Body.String(), `"readOnlyHint":false`) {
+		t.Fatalf("response body should include explicit readOnlyHint false: %s", res.Body.String())
 	}
 }
