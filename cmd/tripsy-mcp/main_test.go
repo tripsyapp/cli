@@ -50,6 +50,19 @@ func TestRegisterMCPHTTPHandlersDoesNotDuplicateRoot(t *testing.T) {
 	}
 }
 
+func TestNewHTTPServerHasDefensiveTimeouts(t *testing.T) {
+	server := newHTTPServer("127.0.0.1:0", http.NotFoundHandler())
+	if server.ReadHeaderTimeout <= 0 {
+		t.Fatal("ReadHeaderTimeout must be configured")
+	}
+	if server.IdleTimeout <= 0 {
+		t.Fatal("IdleTimeout must be configured")
+	}
+	if server.Handler == nil {
+		t.Fatal("Handler must be configured")
+	}
+}
+
 func TestOpenAIAppsChallenge(t *testing.T) {
 	res := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/openai-apps-challenge", nil)
@@ -66,7 +79,7 @@ func TestOpenAIAppsChallenge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := string(body), openAIAppsChallengeToken+"\n"; got != want {
+	if got, want := string(body), openAIAppsChallengeResponse+"\n"; got != want {
 		t.Fatalf("body = %q, want %q", got, want)
 	}
 }

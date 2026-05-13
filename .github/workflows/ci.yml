@@ -22,17 +22,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
           cache: true
 
       - name: Format check
-        run: test -z "$(gofmt -l ./cmd ./internal)"
+        run: make fmt-check
 
       - name: Vet
-        run: go vet ./...
+        run: make vet
 
       - name: Test
-        run: go test ./...
+        run: make test
+
+      - name: Vulnerability check
+        run: make vulncheck
 
       - name: Build
         run: make build

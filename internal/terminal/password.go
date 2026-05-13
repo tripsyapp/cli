@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -26,7 +27,7 @@ func ReadPassword(r io.Reader) (string, bool, error) {
 	if err != nil && err != io.EOF {
 		return "", hidden, err
 	}
-	return strings.TrimSpace(line), hidden, nil
+	return strings.TrimRight(line, "\r\n"), hidden, nil
 }
 
 func isTerminal(file *os.File) bool {
@@ -44,6 +45,12 @@ func disableEcho(file *os.File) (func(), bool) {
 }
 
 func runStty(file *os.File, arg string) error {
+	switch arg {
+	case "-echo", "echo":
+	default:
+		return fmt.Errorf("unsupported stty argument %q", arg)
+	}
+	// #nosec G204 -- stty is a fixed executable and arg is restricted above.
 	cmd := exec.Command("stty", arg)
 	cmd.Stdin = file
 	cmd.Stdout = io.Discard

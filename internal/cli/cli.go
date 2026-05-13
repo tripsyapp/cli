@@ -51,6 +51,25 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	if shouldRunWithoutConfig(root, remaining) {
+		a := &app{
+			args:   remaining,
+			stdin:  stdin,
+			stdout: stdout,
+			stderr: stderr,
+			root:   root,
+			out: output.Options{
+				JSON:       root.JSON,
+				Quiet:      root.Quiet,
+				IsTerminal: isTerminal(stdout),
+			},
+		}
+		if err := a.execute(context.Background()); err != nil {
+			return a.fail(err)
+		}
+		return 0
+	}
+
 	store := config.NewStore(root.ConfigDir)
 	credentials, err := store.LoadCredentials()
 	if err != nil {
@@ -80,6 +99,21 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return a.fail(err)
 	}
 	return 0
+}
+
+func shouldRunWithoutConfig(root rootOptions, args []string) bool {
+	if root.Version || root.Help {
+		return true
+	}
+	if len(args) == 0 {
+		return true
+	}
+	switch args[0] {
+	case "commands", "help", "version":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *app) execute(ctx context.Context) error {
@@ -385,6 +419,9 @@ func buildPayload(fs *flagSet, allowed []string) (map[string]any, error) {
 		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 			return nil, fmt.Errorf("--data must be a JSON object: %w", err)
 		}
+		if payload == nil {
+			return nil, usageError("--data must be a JSON object")
+		}
 	}
 
 	for _, field := range allowed {
@@ -464,6 +501,10 @@ func queryWithFieldsExcluded(query url.Values, fields ...string) url.Values {
 		query.Set("fields!", joined)
 	}
 	return query
+}
+
+func apiPathSegment(value string) string {
+	return url.PathEscape(strings.TrimSpace(value))
 }
 
 func joinQueryFields(fields []string) string {
@@ -932,7 +973,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+id, tripDataQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -992,7 +1033,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err := validateTripCoverImageURL(payload); err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+id, tripDataQuery(nil), payload)
+		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1006,7 +1047,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+id, tripDataQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1119,7 +1160,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 			query.Set(spec.FilterParam, fs.String(spec.FilterFlag))
 		}
 		query = spec.responseQuery(query)
-		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.ListPath, tripID), query, nil)
+		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.ListPath, apiPathSegment(tripID)), query, nil)
 		if err != nil {
 			return err
 		}
@@ -1145,7 +1186,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.DetailPath, apiPathSegment(tripID), apiPathSegment(id)), spec.responseQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1173,7 +1214,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if len(payload) == 0 {
 			return usageError("%s create requires --data or field flags", spec.Plural)
 		}
-		resp, err := a.client.Request(ctx, "POST", fmt.Sprintf(spec.ListPath, tripID), spec.responseQuery(nil), payload)
+		resp, err := a.client.Request(ctx, "POST", fmt.Sprintf(spec.ListPath, apiPathSegment(tripID)), spec.responseQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1206,7 +1247,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if len(payload) == 0 {
 			return usageError("%s update requires --set key=value or field flags", spec.Plural)
 		}
-		resp, err := a.client.Request(ctx, "PATCH", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), payload)
+		resp, err := a.client.Request(ctx, "PATCH", fmt.Sprintf(spec.DetailPath, apiPathSegment(tripID), apiPathSegment(id)), spec.responseQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1224,7 +1265,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", fmt.Sprintf(spec.DetailPath, tripID, id), spec.responseQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "DELETE", fmt.Sprintf(spec.DetailPath, apiPathSegment(tripID), apiPathSegment(id)), spec.responseQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1263,7 +1304,7 @@ func (a *app) collaborators(ctx context.Context, args []string) error {
 	if tripID == "" {
 		return usageError("collaborators requires --trip")
 	}
-	resp, err := a.client.Request(ctx, "GET", "/v1/trip/"+tripID+"/collaborators", nil, nil)
+	resp, err := a.client.Request(ctx, "GET", "/v1/trip/"+apiPathSegment(tripID)+"/collaborators", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -1315,7 +1356,7 @@ func (a *app) emails(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", "/v1/emails/"+id, nil, nil)
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/emails/"+apiPathSegment(id), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1357,7 +1398,7 @@ func (a *app) inbox(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/automation/emails/"+id, nil, nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/automation/emails/"+apiPathSegment(id), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1378,7 +1419,7 @@ func (a *app) inbox(ctx context.Context, args []string) error {
 		if len(payload) == 0 {
 			return usageError("inbox update requires --subject or a move target flag")
 		}
-		resp, err := a.client.Request(ctx, "PATCH", "/v1/automation/emails/"+id, nil, payload)
+		resp, err := a.client.Request(ctx, "PATCH", "/v1/automation/emails/"+apiPathSegment(id), nil, payload)
 		if err != nil {
 			return err
 		}
@@ -1392,7 +1433,7 @@ func (a *app) inbox(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", "/v1/automation/emails/"+id, nil, nil)
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/automation/emails/"+apiPathSegment(id), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1420,7 +1461,7 @@ func (a *app) documents(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/documents/"+id+"/get", nil, nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/documents/"+apiPathSegment(id)+"/get", nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1441,7 +1482,7 @@ func (a *app) documents(ctx context.Context, args []string) error {
 		if len(payload) == 0 {
 			return usageError("documents update requires --title or a move target flag")
 		}
-		resp, err := a.client.Request(ctx, "PATCH", "/v1/documents/"+id, nil, payload)
+		resp, err := a.client.Request(ctx, "PATCH", "/v1/documents/"+apiPathSegment(id), nil, payload)
 		if err != nil {
 			return err
 		}
@@ -1493,7 +1534,7 @@ func (a *app) documents(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		path := documentAttachPath(tripID, parentType, parentID) + "/" + id
+		path := documentAttachPath(tripID, parentType, parentID) + "/" + apiPathSegment(id)
 		resp, err := a.client.Request(ctx, "DELETE", path, nil, nil)
 		if err != nil {
 			return err
@@ -1608,6 +1649,9 @@ func (a *app) rawRequest(ctx context.Context, args []string) error {
 	}
 	method := strings.ToUpper(fs.positionals[0])
 	path := fs.positionals[1]
+	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+		return usageError("request path must be a Tripsy API path beginning with /")
+	}
 	query := url.Values{}
 	for _, pair := range fs.All("query") {
 		key, value, ok := strings.Cut(pair, "=")
@@ -1683,6 +1727,8 @@ func parentFromFlags(fs *flagSet, tripID string) (string, string, error) {
 }
 
 func documentAttachPath(tripID, parentType, parentID string) string {
+	tripID = apiPathSegment(tripID)
+	parentID = apiPathSegment(parentID)
 	switch parentType {
 	case "trip":
 		return "/v1/trip/" + tripID + "/documents"
@@ -1768,7 +1814,8 @@ var tripFields = []string{
 	"guest_invites",
 }
 
-var tripDetailFields = append([]string{"id"}, append(tripFields,
+var tripDetailFields = append([]string{"id"}, append(
+	tripFields,
 	"collaborators_count",
 	"owner",
 	"collaborators",
@@ -1807,7 +1854,8 @@ var hostingDetailFields = append([]string{
 	"id",
 	"owner",
 	"trip",
-}, append(hostingFields,
+}, append(
+	hostingFields,
 	"emails",
 	"documents",
 	"created_at",
@@ -1847,7 +1895,8 @@ var activityDetailFields = append([]string{
 	"id",
 	"owner",
 	"trip",
-}, append(activityFields,
+}, append(
+	activityFields,
 	"documents",
 	"emails",
 	"created_at",
@@ -1904,7 +1953,8 @@ var transportationDetailFields = append([]string{
 	"id",
 	"owner",
 	"trip",
-}, append(transportationFields,
+}, append(
+	transportationFields,
 	"documents",
 	"emails",
 	"created_at",
@@ -1918,7 +1968,8 @@ var expenseFields = []string{
 	"currency",
 }
 
-var expenseDetailFields = append([]string{"id"}, append(expenseFields,
+var expenseDetailFields = append([]string{"id"}, append(
+	expenseFields,
 	"owner",
 	"trip",
 )...)

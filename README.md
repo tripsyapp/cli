@@ -52,8 +52,12 @@ bin/tripsy-mcp --version
 For development:
 
 ```sh
+make fmt
 make check
+make vulncheck
 ```
+
+`make fmt` applies the pinned Go formatter (`gofumpt`) across the Go source tree. `make fmt-check` verifies formatting without modifying files, and CI runs that check plus `go vet`, tests, and `govulncheck`.
 
 ## Authentication
 

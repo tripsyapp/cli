@@ -175,6 +175,7 @@ func (s *Store) saveFileCredentials(credentials Credentials, includeToken bool) 
 	if err := os.MkdirAll(s.Dir, 0o700); err != nil {
 		return err
 	}
+	// #nosec G302 -- config directories require execute permission; credentials.json is written 0600 below.
 	if err := os.Chmod(s.Dir, 0o700); err != nil {
 		return err
 	}

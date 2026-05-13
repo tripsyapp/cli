@@ -46,7 +46,7 @@ func (c *tokenCache) get(token string) (*auth.TokenInfo, bool) {
 		c.mu.Unlock()
 		return nil, false
 	}
-	return entry.info, true
+	return cloneTokenInfo(entry.info), true
 }
 
 func (c *tokenCache) put(token string, info *auth.TokenInfo) {
@@ -58,8 +58,25 @@ func (c *tokenCache) put(token string, info *auth.TokenInfo) {
 		expiration = info.Expiration
 	}
 	c.mu.Lock()
-	c.m[c.key(token)] = tokenCacheEntry{info: info, expiration: expiration}
+	c.m[c.key(token)] = tokenCacheEntry{info: cloneTokenInfo(info), expiration: expiration}
 	c.mu.Unlock()
+}
+
+func cloneTokenInfo(info *auth.TokenInfo) *auth.TokenInfo {
+	if info == nil {
+		return nil
+	}
+	clone := *info
+	if info.Scopes != nil {
+		clone.Scopes = append([]string(nil), info.Scopes...)
+	}
+	if info.Extra != nil {
+		clone.Extra = make(map[string]any, len(info.Extra))
+		for key, value := range info.Extra {
+			clone.Extra[key] = value
+		}
+	}
+	return &clone
 }
 
 func cachedVerifier(verifier auth.TokenVerifier, ttl time.Duration) auth.TokenVerifier {

@@ -21,7 +21,7 @@ import (
 	"github.com/tripsyapp/cli/internal/mcpserver"
 )
 
-const openAIAppsChallengeToken = "aYBlXTk9xrrpyW7v1pieVqn9w9BxXjRLWPak0uJtkqc"
+const openAIAppsChallengeResponse = "aYBlXTk9xrrpyW7v1pieVqn9w9BxXjRLWPak0uJtkqc"
 
 func main() {
 	var opts mcpserver.Options
@@ -149,7 +149,16 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 	}
 	paths := registerMCPHTTPHandlers(mux, path, httpHandler)
 	log.Printf("Tripsy MCP listening on http://%s%s (aliases=%s api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, strings.Join(paths, ","), info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(newHTTPServer(addr, mux).ListenAndServe())
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
 }
 
 type explicitToolAnnotationsWriter struct {
@@ -296,7 +305,7 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 func openAIAppsChallenge(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(openAIAppsChallengeToken + "\n"))
+	_, _ = w.Write([]byte(openAIAppsChallengeResponse + "\n"))
 }
 
 func versionString() string {

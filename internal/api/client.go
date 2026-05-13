@@ -119,6 +119,7 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 }
 
 func (c *Client) UploadFile(ctx context.Context, uploadURL string, headers map[string]string, filePath string) error {
+	// #nosec G304 -- filePath is the explicit user-selected file for the upload command.
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err

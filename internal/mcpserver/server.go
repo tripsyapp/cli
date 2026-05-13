@@ -44,8 +44,10 @@ type service struct {
 	disableRawRequest bool
 }
 
-const tokenInfoTripsyTokenKey = "tripsy_token"
-const tokenInfoAuthSchemeKey = "auth_scheme"
+const (
+	tokenInfoTripsyTokenKey = "tripsy_token"
+	tokenInfoAuthSchemeKey  = "auth_scheme"
+)
 
 func New(opts Options) (*mcp.Server, RuntimeInfo, error) {
 	store := config.NewStore(opts.ConfigDir)

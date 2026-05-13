@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -57,6 +59,53 @@ func TestRequestRequiresMethodAndPath(t *testing.T) {
 	}
 	if !bytes.Contains(stderr.Bytes(), []byte("request requires METHOD and PATH")) {
 		t.Fatalf("stderr = %s", stderr.String())
+	}
+}
+
+func TestVersionDoesNotReadCredentials(t *testing.T) {
+	t.Setenv("TRIPSY_AUTH_BACKEND", "file")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "credentials.json"), []byte("{not-json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"--config-dir", dir, "--version"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "tripsy version") {
+		t.Fatalf("stdout = %q, want version output", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %s, want empty", stderr.String())
+	}
+}
+
+func TestBuildPayloadRejectsNullDataObject(t *testing.T) {
+	fs, err := parseFlags([]string{"--data", "null"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildPayload(fs, []string{"name"}); err == nil || !strings.Contains(err.Error(), "--data must be a JSON object") {
+		t.Fatalf("buildPayload error = %v, want JSON object error", err)
+	}
+}
+
+func TestRawRequestRejectsExternalURL(t *testing.T) {
+	var called bool
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		t.Errorf("API should not be called for an external request URL")
+	})
+	defer cleanup()
+
+	err := a.rawRequest(context.Background(), []string{"GET", "https://example.com/v1/me"})
+	if err == nil || !strings.Contains(err.Error(), "path must be a Tripsy API path") {
+		t.Fatalf("rawRequest error = %v, want path validation error", err)
+	}
+	if called {
+		t.Fatal("API was called, want validation failure before request")
 	}
 }
 
@@ -126,6 +175,29 @@ func TestTripsCommandsExcludeDocumentsAndEmails(t *testing.T) {
 				t.Fatalf("trips(%v) failed: %v", tt.args, err)
 			}
 		})
+	}
+}
+
+func TestTripsShowEscapesIDPathSegment(t *testing.T) {
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.RequestURI; !strings.HasPrefix(got, "/v1/trips/..%2Fme?") {
+			t.Errorf("request URI = %q, want escaped trip id segment", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"../me","name":"Escaped"}`))
+	})
+	defer cleanup()
+
+	if err := a.trips(context.Background(), []string{"show", "../me"}); err != nil {
+		t.Fatalf("trips show failed: %v", err)
+	}
+}
+
+func TestDocumentAttachPathEscapesSegments(t *testing.T) {
+	got := documentAttachPath("trip/42", "activity", "activity/9")
+	want := "/v1/trip/trip%2F42/activity/activity%2F9/documents"
+	if got != want {
+		t.Fatalf("documentAttachPath = %q, want %q", got, want)
 	}
 }
 
