@@ -100,7 +100,7 @@ Use Tripsy's MCP server when an agent or app supports MCP. Two ways to connect:
 
 ### Hosted endpoint (recommended)
 
-Tripsy operates a public MCP server at `https://mcp.tripsy.app/mcp`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`.
+Tripsy operates a public MCP server at `https://mcp.tripsy.app`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`. The previous `https://mcp.tripsy.app/mcp` endpoint remains available for existing clients.
 
 Example MCP client configuration:
 
@@ -142,7 +142,7 @@ The default HTTP endpoint path is `/mcp`, so this is equivalent to:
 tripsy-mcp --transport http --http-addr 127.0.0.1:8787
 ```
 
-To host your own remote MCP endpoint equivalent to `https://mcp.tripsy.app/mcp`, run the HTTP server behind TLS:
+To host your own remote MCP endpoint equivalent to `https://mcp.tripsy.app`, run the HTTP server behind TLS:
 
 ```sh
 tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --disable-raw-request
@@ -151,6 +151,7 @@ tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --disabl
 Then proxy the public path to the local MCP server:
 
 ```text
+https://mcp.tripsy.app/ -> http://127.0.0.1:8787/
 https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
 ```
 
@@ -167,7 +168,7 @@ TRIPSY_OAUTH_SCOPES="profile email"
 TRIPSY_API_BASE=https://api.tripsy.app
 ```
 
-With those values, unauthenticated requests to `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
+With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
 
 The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a real direct Unsplash CDN `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 

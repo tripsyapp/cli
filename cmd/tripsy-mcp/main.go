@@ -104,9 +104,7 @@ type hostedOAuthConfig struct {
 }
 
 func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, stateless, jsonResponse, requireBearer bool, oauthConfig hostedOAuthConfig) {
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
+	path = normalizeHTTPPath(path)
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
@@ -130,7 +128,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 	mux.HandleFunc("/healthz", healthz)
 	if oauthConfig.enabled() {
 		mux.Handle(oauthConfig.resourceMetadataPath, auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
-			Resource:               joinURLPath(oauthConfig.publicURL, path),
+			Resource:               joinURLPath(oauthConfig.publicURL, "/"),
 			AuthorizationServers:   []string{strings.TrimRight(oauthConfig.issuer, "/")},
 			ScopesSupported:        oauthConfig.scopes,
 			BearerMethodsSupported: []string{"header"},
@@ -140,9 +138,39 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 			ResourceTOSURI:         "https://tripsy.app/terms",
 		}))
 	}
-	mux.Handle(path, httpHandler)
-	log.Printf("Tripsy MCP listening on http://%s%s (api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
+	paths := registerMCPHTTPHandlers(mux, path, httpHandler)
+	log.Printf("Tripsy MCP listening on http://%s%s (aliases=%s api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, strings.Join(paths, ","), info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
 	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+func normalizeHTTPPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
+}
+
+func registerMCPHTTPHandlers(mux *http.ServeMux, path string, handler http.Handler) []string {
+	path = normalizeHTTPPath(path)
+	registered := make([]string, 0, 2)
+	register := func(endpoint string) {
+		pattern := endpoint
+		if endpoint == "/" {
+			pattern = "/{$}"
+		}
+		mux.Handle(pattern, handler)
+		registered = append(registered, endpoint)
+	}
+
+	register(path)
+	if path != "/" {
+		register("/")
+	}
+	return registered
 }
 
 func (c hostedOAuthConfig) enabled() bool {
