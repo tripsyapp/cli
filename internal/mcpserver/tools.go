@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path"
@@ -16,7 +17,9 @@ const activityCategoryHint = "Supported activity_type slugs: concert, fit, gener
 
 const transportationCategoryHint = "Supported transportation_type slugs: airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk."
 
-const tripAccessAndDateHint = "Trip list results include all trips accessible to the authenticated user: owned trips and trips shared through collaboration. Do not assume every listed trip is owned by the authenticated user; inspect owner/collaborators when ownership matters. For trip dates, has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if those fields are present."
+const tripTravellingAndDateHint = "Trip list results include trips where the authenticated user is travelling: owned trips and shared trips with current-user is_travelling permission. For trip dates, has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if those fields are present."
+
+const tripFollowingAndDateHint = "Following trip list results include trips the authenticated user follows but is not travelling on, based on current-user is_travelling permission. For trip dates, has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if those fields are present."
 
 type emptyInput struct{}
 
@@ -112,7 +115,7 @@ type tripIDInput struct {
 }
 
 type listInput struct {
-	Fields        []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter. For trip lists, owner, has_dates, starts_at, and ends_at are always included so clients can distinguish owned vs collaboration trips and interpret undated trips correctly."`
+	Fields        []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter. For trip lists, owner, guests, has_dates, starts_at, and ends_at are always included so clients can filter current-user is_travelling/following status and interpret undated trips correctly."`
 	FieldsExclude []string `json:"fields_exclude,omitempty" jsonschema:"Optional response field deny-list. Sent as the API fields! query parameter."`
 	UpdatedSince  string   `json:"updated_since,omitempty" jsonschema:"Optional ISO-8601 timestamp for incremental list filtering."`
 	Deleted       bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it."`
@@ -334,7 +337,32 @@ func (s *service) meUpdate(ctx context.Context, req *mcp.CallToolRequest, in dat
 }
 
 func (s *service) tripsList(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
-	return toolOutput(s.doAllPages(ctx, req, "GET", "/v2/trips/", tripListQuery(in), nil, "Trips. "+tripAccessAndDateHint))
+	return s.filteredTripsList(ctx, req, in, true, "Trips. "+tripTravellingAndDateHint)
+}
+
+func (s *service) tripsFollowingList(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
+	return s.filteredTripsList(ctx, req, in, false, "Following trips. "+tripFollowingAndDateHint)
+}
+
+func (s *service) filteredTripsList(ctx context.Context, req *mcp.CallToolRequest, in listInput, travelling bool, summary string) (*mcp.CallToolResult, any, error) {
+	client := s.clientForRequest(req)
+	if err := requireToken(client); err != nil {
+		return nil, nil, err
+	}
+	meResp, err := client.Request(ctx, "GET", "/v1/me", nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	currentUserID := valueString(meResp.Data, "id")
+	if currentUserID == "" {
+		return nil, nil, fmt.Errorf("current user response did not include id")
+	}
+	resp, err := client.RequestAllPages(ctx, "GET", "/v2/trips/", tripListQuery(in), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	filterTripList(resp.Data, currentUserID, travelling)
+	return toolOutput(envelope(resp, summary), nil)
 }
 
 func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
@@ -615,8 +643,8 @@ func listQuery(in listInput) url.Values {
 
 func tripListQuery(in listInput) url.Values {
 	query := listQuery(in)
-	ensureFields(query, "owner", "has_dates", "starts_at", "ends_at")
-	removeFieldsExclude(query, "owner", "has_dates", "starts_at", "ends_at")
+	ensureFields(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
+	removeFieldsExclude(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
 	return query
 }
 
@@ -732,6 +760,86 @@ func addFieldsExclude(query url.Values, fields []string) {
 	values = append(values, fields...)
 	if joined := joinFields(values); joined != "" {
 		query.Set("fields!", joined)
+	}
+}
+
+func filterTripList(data any, currentUserID string, travelling bool) {
+	root, ok := data.(map[string]any)
+	if !ok {
+		return
+	}
+	items, ok := root["results"].([]any)
+	if !ok {
+		return
+	}
+	filtered := make([]any, 0, len(items))
+	for _, item := range items {
+		if tripUserTravelling(item, currentUserID) == travelling {
+			filtered = append(filtered, item)
+		}
+	}
+	root["results"] = filtered
+	root["count"] = len(filtered)
+}
+
+func tripUserTravelling(item any, currentUserID string) bool {
+	trip, ok := item.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, guest := range anySlice(trip["guests"]) {
+		guestMap, ok := guest.(map[string]any)
+		if !ok || scalarString(guestMap["id"]) != currentUserID {
+			continue
+		}
+		permissions, _ := guestMap["permissions"].(map[string]any)
+		if value, ok := permissions["is_travelling"].(bool); ok {
+			return value
+		}
+		return true
+	}
+	return scalarString(trip["owner"]) == currentUserID
+}
+
+func anySlice(value any) []any {
+	items, _ := value.([]any)
+	return items
+}
+
+func valueString(item any, key string) string {
+	object, ok := item.(map[string]any)
+	if !ok {
+		return ""
+	}
+	return scalarString(object[key])
+}
+
+func scalarString(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(typed)
+	case json.Number:
+		return typed.String()
+	case float64:
+		return fmt.Sprintf("%.0f", typed)
+	case float32:
+		return fmt.Sprintf("%.0f", typed)
+	case int:
+		return fmt.Sprint(typed)
+	case int64:
+		return fmt.Sprint(typed)
+	case int32:
+		return fmt.Sprint(typed)
+	case uint:
+		return fmt.Sprint(typed)
+	case uint64:
+		return fmt.Sprint(typed)
+	case uint32:
+		return fmt.Sprint(typed)
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed))
 	}
 }
 

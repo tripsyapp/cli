@@ -35,6 +35,8 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		"tripsy_hostings_create",
 		"tripsy_transportations_create",
 		"tripsy_collaborators_list",
+		"tripsy_trips_list",
+		"tripsy_trips_following_list",
 		"tripsy_raw_request",
 	} {
 		if findTool(res.Tools, name) == nil {
@@ -92,12 +94,16 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	tripsList := findTool(res.Tools, "tripsy_trips_list")
-	if !strings.Contains(tripsList.Description, "shared through collaboration") || !strings.Contains(tripsList.Description, "has_dates is authoritative") || !strings.Contains(tripsList.Description, "ignore starts_at and ends_at") {
-		t.Fatalf("trips list description should mention collaboration ownership and has_dates guidance: %q", tripsList.Description)
+	if !strings.Contains(tripsList.Description, "user is travelling") || !strings.Contains(tripsList.Description, "is_travelling") || !strings.Contains(tripsList.Description, "has_dates is authoritative") || !strings.Contains(tripsList.Description, "ignore starts_at and ends_at") {
+		t.Fatalf("trips list description should mention travelling and has_dates guidance: %q", tripsList.Description)
+	}
+	tripsFollowingList := findTool(res.Tools, "tripsy_trips_following_list")
+	if !strings.Contains(tripsFollowingList.Description, "follows but is not travelling") || !strings.Contains(tripsFollowingList.Description, "is_travelling") || !strings.Contains(tripsFollowingList.Description, "has_dates is authoritative") {
+		t.Fatalf("trips following list description should mention following and has_dates guidance: %q", tripsFollowingList.Description)
 	}
 	tripsListSchema := toolSchemaString(t, tripsList)
-	if !strings.Contains(tripsListSchema, "owner") || !strings.Contains(tripsListSchema, "has_dates") || !strings.Contains(tripsListSchema, "undated trips") {
-		t.Fatalf("trips list input schema should preserve ownership/date context fields: %s", tripsListSchema)
+	if !strings.Contains(tripsListSchema, "owner") || !strings.Contains(tripsListSchema, "guests") || !strings.Contains(tripsListSchema, "has_dates") || !strings.Contains(tripsListSchema, "is_travelling") || !strings.Contains(tripsListSchema, "undated trips") {
+		t.Fatalf("trips list input schema should preserve travelling/date context fields: %s", tripsListSchema)
 	}
 
 	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
@@ -140,38 +146,74 @@ func TestTripsListKeepsOwnershipAndDateContextFields(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
+		if r.URL.Path == "/v1/me" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":7}`))
+			return
+		}
 		if r.URL.Path != "/v2/trips/" {
 			t.Errorf("path = %s, want /v2/trips/", r.URL.Path)
 		}
 		query := r.URL.Query()
-		if got := query.Get("fields"); got != "ends_at,has_dates,id,name,owner,starts_at" {
-			t.Errorf("fields = %q, want ownership/date context fields preserved", got)
+		if got := query.Get("fields"); got != "ends_at,guests,has_dates,id,name,owner,starts_at" {
+			t.Errorf("fields = %q, want travelling/date context fields preserved", got)
 		}
 		if got := query.Get("fields!"); got != "" {
 			t.Errorf("fields! = %q, want empty", got)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"id":42,"name":"Shared trip","has_dates":false,"starts_at":"2026-06-01","ends_at":"2026-06-03","owner":{"id":7}}]}`))
+		_, _ = w.Write([]byte(`{"results":[{"id":42,"name":"Shared trip","has_dates":false,"starts_at":"2026-06-01","ends_at":"2026-06-03","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
 	})
 	session, cleanup := connectTestSession(t, "test-token", handler)
 	defer cleanup()
 
 	res := callTool(t, session, "tripsy_trips_list", map[string]any{
 		"fields":         []string{"name", "id"},
-		"fields_exclude": []string{"owner", "has_dates"},
+		"fields_exclude": []string{"owner", "guests", "has_dates"},
 	})
 	if res.IsError {
 		t.Fatalf("tool returned error: %s", toolText(res))
 	}
-	if called.Load() != 1 {
-		t.Fatalf("handler called %d times, want 1", called.Load())
+	if called.Load() != 2 {
+		t.Fatalf("handler called %d times, want 2", called.Load())
 	}
 
 	structured := structuredMap(t, res)
 	summary := fmt.Sprint(structured["summary"])
-	if !strings.Contains(summary, "shared through collaboration") || !strings.Contains(summary, "has_dates is authoritative") {
-		t.Fatalf("summary = %q, want collaboration and has_dates guidance", summary)
+	if !strings.Contains(summary, "user is travelling") || !strings.Contains(summary, "has_dates is authoritative") {
+		t.Fatalf("summary = %q, want travelling and has_dates guidance", summary)
+	}
+}
+
+func TestTripsFollowingListFiltersNonTravellingTrips(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"id":7}`))
+		case "/v2/trips/":
+			_, _ = w.Write([]byte(`{"count":2,"next":null,"previous":null,"results":[{"id":42,"name":"Following","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":false}}]},{"id":43,"name":"Travelling","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
+		default:
+			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
+		}
+	})
+	session, cleanup := connectTestSession(t, "test-token", handler)
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_trips_following_list", map[string]any{})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+
+	structured := structuredMap(t, res)
+	data := structured["data"].(map[string]any)
+	items := data["results"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("results len = %d, want 1", len(items))
+	}
+	if got := items[0].(map[string]any)["name"]; got != "Following" {
+		t.Fatalf("name = %v, want Following", got)
 	}
 }
 

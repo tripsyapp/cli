@@ -176,7 +176,7 @@ With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Aut
 
 The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a real direct Unsplash CDN `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
 
-Trip list results include all trips accessible to the authenticated user: trips owned by that user and trips shared through collaboration. Clients must inspect `owner` and collaborator fields before presenting a trip as owned by the current user. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present on the object.
+Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present on the object.
 
 Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
 
@@ -185,6 +185,7 @@ Use the CLI when you want direct terminal commands, shell scripts, or human-read
 ```sh
 tripsy me show
 tripsy trips list
+tripsy trips following
 tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
 tripsy activities list --trip 42
 tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --address "Piazza del Colosseo, 1, 00184 Rome, Italy" --latitude 41.8902 --longitude 12.4922
@@ -198,7 +199,8 @@ tripsy request GET /v1/me --json
 When building a Tripsy itinerary for a user or agent workflow:
 
 - Set trip dates whenever the itinerary needs day-by-day planning. Use trip date strings such as `2026-06-01`.
-- Trip lists include owned trips and trips shared through collaboration. Inspect `owner` and collaborators before treating a trip as owned by the authenticated user.
+- `trips list` and `tripsy_trips_list` include only trips where the authenticated user is travelling.
+- `trips following` and `tripsy_trips_following_list` include trips the authenticated user follows but is not travelling on.
 - `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - Choose a high-quality destination-specific Unsplash image for the trip cover when possible, and set it with `cover_image_url`.
 - Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. The app will add its own display parameters.

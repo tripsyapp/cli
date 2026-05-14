@@ -482,6 +482,12 @@ func commonListQuery(fs *flagSet) url.Values {
 	return query
 }
 
+func tripListQuery(query url.Values) url.Values {
+	ensureQueryFields(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
+	removeQueryFieldsExclude(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
+	return query
+}
+
 var defaultTripDataFieldsExclude = []string{"documents", "emails"}
 
 func tripDataQuery(query url.Values) url.Values {
@@ -521,6 +527,41 @@ func joinQueryFields(fields []string) string {
 	}
 	sort.Strings(normalized)
 	return strings.Join(normalized, ",")
+}
+
+func ensureQueryFields(query url.Values, fields ...string) {
+	if query == nil || query.Get("fields") == "" {
+		return
+	}
+	values := append([]string{}, query["fields"]...)
+	values = append(values, fields...)
+	if joined := joinQueryFields(values); joined != "" {
+		query.Set("fields", joined)
+	}
+}
+
+func removeQueryFieldsExclude(query url.Values, fields ...string) {
+	if query == nil || query.Get("fields!") == "" {
+		return
+	}
+	blocked := map[string]bool{}
+	for _, field := range fields {
+		blocked[field] = true
+	}
+	kept := make([]string, 0, len(query["fields!"]))
+	for _, value := range query["fields!"] {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" && !blocked[part] {
+				kept = append(kept, part)
+			}
+		}
+	}
+	if joined := joinQueryFields(kept); joined != "" {
+		query.Set("fields!", joined)
+	} else {
+		query.Del("fields!")
+	}
 }
 
 func requireToken(client *api.Client) error {
@@ -563,6 +604,18 @@ func objectMap(data any) map[string]any {
 	return item
 }
 
+func (a *app) currentUserID(ctx context.Context) (string, error) {
+	resp, err := a.client.Request(ctx, "GET", "/v1/me", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	id := valueString(resp.Data, "id")
+	if id == "" {
+		return "", fmt.Errorf("current user response did not include id")
+	}
+	return id, nil
+}
+
 func results(data any) []any {
 	if root, ok := data.(map[string]any); ok {
 		if items, ok := root["results"].([]any); ok {
@@ -575,6 +628,49 @@ func results(data any) []any {
 	return nil
 }
 
+func filterTripList(data any, currentUserID string, travelling bool) {
+	root, ok := data.(map[string]any)
+	if !ok {
+		return
+	}
+	items, ok := root["results"].([]any)
+	if !ok {
+		return
+	}
+	filtered := make([]any, 0, len(items))
+	for _, item := range items {
+		if tripUserTravelling(item, currentUserID) == travelling {
+			filtered = append(filtered, item)
+		}
+	}
+	root["results"] = filtered
+	root["count"] = len(filtered)
+}
+
+func tripUserTravelling(item any, currentUserID string) bool {
+	trip, ok := item.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, guest := range anySlice(trip["guests"]) {
+		guestMap, ok := guest.(map[string]any)
+		if !ok || scalarString(guestMap["id"]) != currentUserID {
+			continue
+		}
+		permissions, _ := guestMap["permissions"].(map[string]any)
+		if value, ok := permissions["is_travelling"].(bool); ok {
+			return value
+		}
+		return true
+	}
+	return scalarString(trip["owner"]) == currentUserID
+}
+
+func anySlice(value any) []any {
+	items, _ := value.([]any)
+	return items
+}
+
 func valueString(item any, key string) string {
 	object, ok := item.(map[string]any)
 	if !ok {
@@ -585,6 +681,35 @@ func valueString(item any, key string) string {
 		return ""
 	}
 	return fmt.Sprint(value)
+}
+
+func scalarString(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(typed)
+	case json.Number:
+		return typed.String()
+	case float64:
+		return fmt.Sprintf("%.0f", typed)
+	case float32:
+		return fmt.Sprintf("%.0f", typed)
+	case int:
+		return fmt.Sprint(typed)
+	case int64:
+		return fmt.Sprint(typed)
+	case int32:
+		return fmt.Sprint(typed)
+	case uint:
+		return fmt.Sprint(typed)
+	case uint64:
+		return fmt.Sprint(typed)
+	case uint32:
+		return fmt.Sprint(typed)
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed))
+	}
 }
 
 func formatObjects(title string, data any, columns ...string) string {
@@ -948,11 +1073,16 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		query := commonListQuery(fs)
+		query := tripListQuery(commonListQuery(fs))
 		resp, err := a.client.RequestAllPages(ctx, "GET", "/v2/trips/", query, nil)
 		if err != nil {
 			return err
 		}
+		userID, err := a.currentUserID(ctx)
+		if err != nil {
+			return err
+		}
+		filterTripList(resp.Data, userID, true)
 		return a.render(output.Result{
 			Data:    resp.Data,
 			Summary: fmt.Sprintf("%d trips", len(results(resp.Data))),
@@ -963,6 +1093,32 @@ func (a *app) trips(ctx context.Context, args []string) error {
 				{Action: "transportations", Cmd: "tripsy transportations list --trip <id>"},
 			},
 			Human: formatObjects("Trips", resp.Data, "id", "name", "starts_at", "ends_at", "timezone"),
+		})
+	case "following", "friends":
+		fs, err := parseFlags(args[1:], "deleted")
+		if err != nil {
+			return err
+		}
+		query := tripListQuery(commonListQuery(fs))
+		resp, err := a.client.RequestAllPages(ctx, "GET", "/v2/trips/", query, nil)
+		if err != nil {
+			return err
+		}
+		userID, err := a.currentUserID(ctx)
+		if err != nil {
+			return err
+		}
+		filterTripList(resp.Data, userID, false)
+		return a.render(output.Result{
+			Data:    resp.Data,
+			Summary: fmt.Sprintf("%d following trips", len(results(resp.Data))),
+			Breadcrumbs: []output.Breadcrumb{
+				{Action: "show", Cmd: "tripsy trips show <id>"},
+				{Action: "activities", Cmd: "tripsy activities list --trip <id>"},
+				{Action: "hostings", Cmd: "tripsy hostings list --trip <id>"},
+				{Action: "transportations", Cmd: "tripsy transportations list --trip <id>"},
+			},
+			Human: formatObjects("Following trips", resp.Data, "id", "name", "starts_at", "ends_at", "timezone"),
 		})
 	case "show", "get":
 		fs, err := parseFlags(args[1:])
@@ -2042,11 +2198,12 @@ func commandCatalog() []commandSpec {
 		},
 		{
 			Name:        "trips",
-			Usage:       "tripsy trips <list|show|create|update|delete>",
-			Summary:     "List, create, inspect, update, and soft-delete trips.",
-			Subcommands: []string{"list", "show", "create", "update", "delete"},
+			Usage:       "tripsy trips <list|following|show|create|update|delete>",
+			Summary:     "List travelling trips, list followed trips, create, inspect, update, and soft-delete trips.",
+			Subcommands: []string{"list", "following", "show", "create", "update", "delete"},
 			Examples: []string{
 				"tripsy trips list",
+				"tripsy trips following",
 				"tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url 'https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0'",
 				"tripsy trips update 42 --description 'Summer vacation'",
 			},

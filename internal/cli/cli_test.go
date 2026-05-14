@@ -158,6 +158,11 @@ func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/v1/me" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"id":42}`))
+					return
+				}
 				if r.Method != tt.method {
 					t.Errorf("method = %s, want %s", r.Method, tt.method)
 				}
@@ -168,7 +173,7 @@ func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 					t.Errorf("fields! = %q, want %q", got, tt.fieldsExclude)
 				}
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"id":42,"name":"Copenhagen","results":[]}`))
+				_, _ = w.Write([]byte(`{"id":42,"name":"Copenhagen","results":[{"id":42,"owner":42,"guests":[{"id":42,"permissions":{"is_travelling":true}}]}]}`))
 			})
 			defer cleanup()
 
@@ -200,10 +205,12 @@ func TestTripsListCombinesV2PaginatedResults(t *testing.T) {
 		paths = append(paths, r.URL.RequestURI())
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.RequestURI() {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"id":7}`))
 		case "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z":
-			_, _ = w.Write([]byte(`{"count":2,"next":"/v2/trips/?page=2","previous":null,"results":[{"id":1,"name":"One"}]}`))
+			_, _ = w.Write([]byte(`{"count":2,"next":"/v2/trips/?page=2","previous":null,"results":[{"id":1,"name":"One","owner":7,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
 		case "/v2/trips/?page=2":
-			_, _ = w.Write([]byte(`{"count":2,"next":null,"previous":"/v2/trips/","results":[{"id":2,"name":"Two"}]}`))
+			_, _ = w.Write([]byte(`{"count":2,"next":null,"previous":"/v2/trips/","results":[{"id":2,"name":"Two","owner":7,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
 		default:
 			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
 		}
@@ -227,8 +234,74 @@ func TestTripsListCombinesV2PaginatedResults(t *testing.T) {
 	if data["next"] != nil {
 		t.Fatalf("next = %v, want nil after aggregation", data["next"])
 	}
-	if got, want := strings.Join(paths, ","), "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z,/v2/trips/?page=2"; got != want {
+	if got, want := strings.Join(paths, ","), "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z,/v2/trips/?page=2,/v1/me"; got != want {
 		t.Fatalf("paths = %s, want %s", got, want)
+	}
+}
+
+func TestTripsListFiltersTravellingTrips(t *testing.T) {
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"id":7}`))
+		case "/v2/trips/":
+			_, _ = w.Write([]byte(`{"count":3,"next":null,"previous":null,"results":[{"id":1,"name":"Owner","owner":7,"guests":[{"id":7,"permissions":{"is_travelling":true}}]},{"id":2,"name":"Following","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":false}}]},{"id":3,"name":"Travelling guest","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
+		default:
+			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
+		}
+	})
+	defer cleanup()
+
+	if err := a.trips(context.Background(), []string{"list"}); err != nil {
+		t.Fatalf("trips list failed: %v", err)
+	}
+
+	stdout := a.stdout.(*bytes.Buffer)
+	var envelope map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	data := envelope["data"].(map[string]any)
+	items := data["results"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("results len = %d, want 2", len(items))
+	}
+	if data["count"] != float64(2) {
+		t.Fatalf("count = %v, want 2", data["count"])
+	}
+}
+
+func TestTripsFollowingFiltersNonTravellingTrips(t *testing.T) {
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"id":7}`))
+		case "/v2/trips/":
+			_, _ = w.Write([]byte(`{"count":2,"next":null,"previous":null,"results":[{"id":1,"name":"Following","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":false}}]},{"id":2,"name":"Travelling","owner":8,"guests":[{"id":7,"permissions":{"is_travelling":true}}]}]}`))
+		default:
+			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
+		}
+	})
+	defer cleanup()
+
+	if err := a.trips(context.Background(), []string{"following"}); err != nil {
+		t.Fatalf("trips following failed: %v", err)
+	}
+
+	stdout := a.stdout.(*bytes.Buffer)
+	var envelope map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	data := envelope["data"].(map[string]any)
+	items := data["results"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("results len = %d, want 1", len(items))
+	}
+	if got := items[0].(map[string]any)["name"]; got != "Following" {
+		t.Fatalf("name = %v, want Following", got)
 	}
 }
 
