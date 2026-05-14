@@ -142,18 +142,19 @@ func TestFormatFullObjectShowsDocumentedAndExtraFields(t *testing.T) {
 	}
 }
 
-func TestTripsCommandsExcludeDocumentsAndEmails(t *testing.T) {
+func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 	for _, tt := range []struct {
-		name   string
-		args   []string
-		method string
-		path   string
+		name          string
+		args          []string
+		method        string
+		path          string
+		fieldsExclude string
 	}{
-		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v1/trips"},
-		{name: "show", args: []string{"show", "42"}, method: http.MethodGet, path: "/v1/trips/42"},
-		{name: "create", args: []string{"create", "--name", "Copenhagen"}, method: http.MethodPost, path: "/v1/trips"},
-		{name: "update", args: []string{"update", "42", "--name", "Copenhagen"}, method: http.MethodPatch, path: "/v1/trips/42"},
-		{name: "delete", args: []string{"delete", "42"}, method: http.MethodDelete, path: "/v1/trips/42"},
+		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v2/trips/"},
+		{name: "show", args: []string{"show", "42"}, method: http.MethodGet, path: "/v2/trips/42/"},
+		{name: "create", args: []string{"create", "--name", "Copenhagen"}, method: http.MethodPost, path: "/v1/trips", fieldsExclude: "documents,emails"},
+		{name: "update", args: []string{"update", "42", "--name", "Copenhagen"}, method: http.MethodPatch, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
+		{name: "delete", args: []string{"delete", "42"}, method: http.MethodDelete, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
@@ -163,8 +164,8 @@ func TestTripsCommandsExcludeDocumentsAndEmails(t *testing.T) {
 				if r.URL.Path != tt.path {
 					t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
 				}
-				if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
-					t.Errorf("fields! = %q, want documents,emails", got)
+				if got := r.URL.Query().Get("fields!"); got != tt.fieldsExclude {
+					t.Errorf("fields! = %q, want %q", got, tt.fieldsExclude)
 				}
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(`{"id":42,"name":"Copenhagen","results":[]}`))
@@ -180,7 +181,7 @@ func TestTripsCommandsExcludeDocumentsAndEmails(t *testing.T) {
 
 func TestTripsShowEscapesIDPathSegment(t *testing.T) {
 	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
-		if got := r.RequestURI; !strings.HasPrefix(got, "/v1/trips/..%2Fme?") {
+		if got := r.RequestURI; !strings.HasPrefix(got, "/v2/trips/..%2Fme/") {
 			t.Errorf("request URI = %q, want escaped trip id segment", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -190,6 +191,44 @@ func TestTripsShowEscapesIDPathSegment(t *testing.T) {
 
 	if err := a.trips(context.Background(), []string{"show", "../me"}); err != nil {
 		t.Fatalf("trips show failed: %v", err)
+	}
+}
+
+func TestTripsListCombinesV2PaginatedResults(t *testing.T) {
+	var paths []string
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.RequestURI())
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z":
+			_, _ = w.Write([]byte(`{"count":2,"next":"/v2/trips/?page=2","previous":null,"results":[{"id":1,"name":"One"}]}`))
+		case "/v2/trips/?page=2":
+			_, _ = w.Write([]byte(`{"count":2,"next":null,"previous":"/v2/trips/","results":[{"id":2,"name":"Two"}]}`))
+		default:
+			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
+		}
+	})
+	defer cleanup()
+
+	if err := a.trips(context.Background(), []string{"list", "--updated-since", "2026-05-01T00:00:00Z"}); err != nil {
+		t.Fatalf("trips list failed: %v", err)
+	}
+
+	stdout := a.stdout.(*bytes.Buffer)
+	var envelope map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	data := envelope["data"].(map[string]any)
+	items := data["results"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("results len = %d, want 2", len(items))
+	}
+	if data["next"] != nil {
+		t.Fatalf("next = %v, want nil after aggregation", data["next"])
+	}
+	if got, want := strings.Join(paths, ","), "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z,/v2/trips/?page=2"; got != want {
+		t.Fatalf("paths = %s, want %s", got, want)
 	}
 }
 
@@ -225,20 +264,21 @@ func TestTripsCreateRejectsShortUnsplashPhotoID(t *testing.T) {
 	}
 }
 
-func TestTripSubresourceCommandsExcludeDocumentsAndEmails(t *testing.T) {
+func TestTripSubresourceCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 	for _, spec := range []resourceSpec{activityResource, hostingResource, transportationResource} {
 		t.Run(spec.Plural, func(t *testing.T) {
 			for _, tt := range []struct {
-				name   string
-				args   []string
-				method string
-				path   string
+				name          string
+				args          []string
+				method        string
+				path          string
+				fieldsExclude string
 			}{
-				{name: "list", args: []string{"list", "--trip", "42", "--fields-exclude", "notes"}, method: http.MethodGet, path: spec.listPath("42")},
-				{name: "show", args: []string{"show", "--trip", "42", "9"}, method: http.MethodGet, path: spec.detailPath("42", "9")},
-				{name: "create", args: []string{"create", "--trip", "42", "--name", "Reservation"}, method: http.MethodPost, path: spec.listPath("42")},
-				{name: "update", args: []string{"update", "--trip", "42", "9", "--name", "Reservation"}, method: http.MethodPatch, path: spec.detailPath("42", "9")},
-				{name: "delete", args: []string{"delete", "--trip", "42", "9"}, method: http.MethodDelete, path: spec.detailPath("42", "9")},
+				{name: "list", args: []string{"list", "--trip", "42", "--fields-exclude", "notes"}, method: http.MethodGet, path: spec.formatReadListPath("42"), fieldsExclude: "notes"},
+				{name: "show", args: []string{"show", "--trip", "42", "9"}, method: http.MethodGet, path: spec.formatReadDetailPath("42", "9")},
+				{name: "create", args: []string{"create", "--trip", "42", "--name", "Reservation"}, method: http.MethodPost, path: spec.listPath("42"), fieldsExclude: "documents,emails"},
+				{name: "update", args: []string{"update", "--trip", "42", "9", "--name", "Reservation"}, method: http.MethodPatch, path: spec.detailPath("42", "9"), fieldsExclude: "documents,emails"},
+				{name: "delete", args: []string{"delete", "--trip", "42", "9"}, method: http.MethodDelete, path: spec.detailPath("42", "9"), fieldsExclude: "documents,emails"},
 			} {
 				t.Run(tt.name, func(t *testing.T) {
 					a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
@@ -248,12 +288,8 @@ func TestTripSubresourceCommandsExcludeDocumentsAndEmails(t *testing.T) {
 						if r.URL.Path != tt.path {
 							t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
 						}
-						wantFieldsExclude := "documents,emails"
-						if tt.name == "list" {
-							wantFieldsExclude = "documents,emails,notes"
-						}
-						if got := r.URL.Query().Get("fields!"); got != wantFieldsExclude {
-							t.Errorf("fields! = %q, want %s", got, wantFieldsExclude)
+						if got := r.URL.Query().Get("fields!"); got != tt.fieldsExclude {
+							t.Errorf("fields! = %q, want %q", got, tt.fieldsExclude)
 						}
 						w.Header().Set("Content-Type", "application/json")
 						_, _ = w.Write([]byte(`{"id":9,"name":"Reservation","results":[]}`))

@@ -140,15 +140,15 @@ func TestTripsListKeepsOwnershipAndDateContextFields(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
-		if r.URL.Path != "/v1/trips" {
-			t.Errorf("path = %s, want /v1/trips", r.URL.Path)
+		if r.URL.Path != "/v2/trips/" {
+			t.Errorf("path = %s, want /v2/trips/", r.URL.Path)
 		}
 		query := r.URL.Query()
 		if got := query.Get("fields"); got != "ends_at,has_dates,id,name,owner,starts_at" {
 			t.Errorf("fields = %q, want ownership/date context fields preserved", got)
 		}
-		if got := query.Get("fields!"); got != "documents,emails" {
-			t.Errorf("fields! = %q, want documents,emails", got)
+		if got := query.Get("fields!"); got != "" {
+			t.Errorf("fields! = %q, want empty", got)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -395,8 +395,8 @@ func TestTypedToolEscapesPathIDs(t *testing.T) {
 	var called atomic.Int32
 	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called.Add(1)
-		if r.URL.EscapedPath() != "/v1/trips/a%2Fb" {
-			t.Errorf("escaped path = %s, want /v1/trips/a%%2Fb", r.URL.EscapedPath())
+		if r.URL.EscapedPath() != "/v2/trips/a%2Fb/" {
+			t.Errorf("escaped path = %s, want /v2/trips/a%%2Fb/", r.URL.EscapedPath())
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"a/b"}`))
@@ -542,15 +542,15 @@ func TestActivitiesListSendsFilters(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("method = %s, want GET", r.Method)
 		}
-		if r.URL.Path != "/v1/trip/42/activities" {
-			t.Errorf("path = %s, want /v1/trip/42/activities", r.URL.Path)
+		if r.URL.Path != "/v2/trip/42/activities/" {
+			t.Errorf("path = %s, want /v2/trip/42/activities/", r.URL.Path)
 		}
 		query := r.URL.Query()
 		if got := query.Get("fields"); got != "id,name" {
 			t.Errorf("fields = %q, want id,name", got)
 		}
-		if got := query.Get("fields!"); got != "documents,emails" {
-			t.Errorf("fields! = %q, want documents,emails", got)
+		if got := query.Get("fields!"); got != "documents" {
+			t.Errorf("fields! = %q, want documents", got)
 		}
 		if got := query.Get("activityType"); got != "museum" {
 			t.Errorf("activityType = %q, want museum", got)

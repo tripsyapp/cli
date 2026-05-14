@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -59,6 +60,51 @@ func TestRequestReturnsAPIError(t *testing.T) {
 	}
 	if apiErr.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", apiErr.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestRequestAllPagesFollowsPaginationAndCombinesResults(t *testing.T) {
+	var paths []string
+	client := NewClient("https://api.test", "test-token")
+	client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		paths = append(paths, r.URL.RequestURI())
+		switch r.URL.RequestURI() {
+		case "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z":
+			return jsonResponse(http.StatusOK, map[string]any{
+				"count":    2,
+				"next":     "https://api.test/v2/trips/?page=2",
+				"previous": nil,
+				"results":  []any{map[string]any{"id": 1}},
+			}), nil
+		case "/v2/trips/?page=2":
+			return jsonResponse(http.StatusOK, map[string]any{
+				"count":    2,
+				"next":     nil,
+				"previous": "https://api.test/v2/trips/",
+				"results":  []any{map[string]any{"id": 2}},
+			}), nil
+		default:
+			t.Fatalf("unexpected request URI: %s", r.URL.RequestURI())
+			return nil, nil
+		}
+	})}
+
+	query := make(url.Values)
+	query.Set("updatedSince", "2026-05-01T00:00:00Z")
+	resp, err := client.RequestAllPages(context.Background(), "GET", "/v2/trips/", query, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := resp.Data.(map[string]any)
+	items := root["results"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("results len = %d, want 2", len(items))
+	}
+	if root["next"] != nil {
+		t.Fatalf("next = %v, want nil after aggregation", root["next"])
+	}
+	if got, want := strings.Join(paths, ","), "/v2/trips/?updatedSince=2026-05-01T00%3A00%3A00Z,/v2/trips/?page=2"; got != want {
+		t.Fatalf("paths = %s, want %s", got, want)
 	}
 }
 

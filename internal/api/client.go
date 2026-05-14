@@ -118,6 +118,59 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 	return result, nil
 }
 
+func (c *Client) RequestAllPages(ctx context.Context, method, path string, query url.Values, body any) (*Response, error) {
+	resp, err := c.Request(ctx, method, path, query, body)
+	if err != nil {
+		return resp, err
+	}
+	if strings.ToUpper(method) != http.MethodGet {
+		return resp, nil
+	}
+
+	root, ok := resp.Data.(map[string]any)
+	if !ok {
+		return resp, nil
+	}
+	items, ok := root["results"].([]any)
+	if !ok {
+		return resp, nil
+	}
+
+	next := paginationNext(root)
+	if next == "" {
+		return resp, nil
+	}
+
+	visited := map[string]bool{}
+	for next != "" {
+		if visited[next] {
+			return nil, fmt.Errorf("pagination loop detected at %s", next)
+		}
+		visited[next] = true
+
+		pageResp, err := c.Request(ctx, method, next, nil, nil)
+		if err != nil {
+			return pageResp, err
+		}
+		pageRoot, ok := pageResp.Data.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("paginated response page %s was not a JSON object", next)
+		}
+		pageItems, ok := pageRoot["results"].([]any)
+		if !ok {
+			return nil, fmt.Errorf("paginated response page %s did not include results", next)
+		}
+		items = append(items, pageItems...)
+		next = paginationNext(pageRoot)
+	}
+
+	root["results"] = items
+	root["next"] = nil
+	root["previous"] = nil
+	resp.Data = root
+	return resp, nil
+}
+
 func (c *Client) UploadFile(ctx context.Context, uploadURL string, headers map[string]string, filePath string) error {
 	// #nosec G304 -- filePath is the explicit user-selected file for the upload command.
 	file, err := os.Open(filePath)
@@ -151,6 +204,18 @@ func (c *Client) UploadFile(ctx context.Context, uploadURL string, headers map[s
 		return &Error{StatusCode: resp.StatusCode, Raw: raw}
 	}
 	return nil
+}
+
+func paginationNext(root map[string]any) string {
+	value, ok := root["next"]
+	if !ok || value == nil {
+		return ""
+	}
+	next, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(next)
 }
 
 func (c *Client) httpClient() *http.Client {

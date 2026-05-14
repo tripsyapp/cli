@@ -146,7 +146,7 @@ Most JSON output has this shape:
 }
 ```
 
-For list endpoints, `data.results` usually contains items. `tripsy trips list` also uses `data.results`, but the Tripsy API does not include `count` for that endpoint. Trip results can include owned trips and trips shared through collaboration.
+For list endpoints, `data.results` contains items. Trip, hosting, activity, and transportation read commands use the lean v2 API and combine paginated results before rendering. Trip results can include owned trips and trips shared through collaboration.
 
 For detail commands in human output, the CLI displays all fields returned by the API. For agents, prefer `--json` and inspect `data` directly.
 

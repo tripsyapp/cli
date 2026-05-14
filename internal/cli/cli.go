@@ -948,8 +948,8 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		query := tripDataQuery(commonListQuery(fs))
-		resp, err := a.client.Request(ctx, "GET", "/v1/trips", query, nil)
+		query := commonListQuery(fs)
+		resp, err := a.client.RequestAllPages(ctx, "GET", "/v2/trips/", query, nil)
 		if err != nil {
 			return err
 		}
@@ -973,7 +973,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "GET", "/v2/trips/"+apiPathSegment(id)+"/", nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1073,57 +1073,65 @@ func validateTripCoverImageURL(payload map[string]any) error {
 }
 
 type resourceSpec struct {
-	Name         string
-	Plural       string
-	Singular     string
-	ListPath     string
-	DetailPath   string
-	FilterFlag   string
-	FilterParam  string
-	Fields       []string
-	DetailFields []string
-	Columns      []string
-	ExcludeData  bool
+	Name           string
+	Plural         string
+	Singular       string
+	ListPath       string
+	DetailPath     string
+	ReadListPath   string
+	ReadDetailPath string
+	FilterFlag     string
+	FilterParam    string
+	Fields         []string
+	DetailFields   []string
+	Columns        []string
+	ExcludeData    bool
 }
 
 var hostingResource = resourceSpec{
-	Name:         "hosting",
-	Plural:       "hostings",
-	Singular:     "hosting",
-	ListPath:     "/v1/trip/%s/hostings",
-	DetailPath:   "/v1/trip/%s/hosting/%s",
-	Fields:       hostingFields,
-	DetailFields: hostingDetailFields,
-	Columns:      []string{"id", "name", "starts_at", "ends_at", "address"},
-	ExcludeData:  true,
+	Name:           "hosting",
+	Plural:         "hostings",
+	Singular:       "hosting",
+	ListPath:       "/v1/trip/%s/hostings",
+	DetailPath:     "/v1/trip/%s/hosting/%s",
+	ReadListPath:   "/v2/trip/%s/hostings/",
+	ReadDetailPath: "/v2/trip/%s/hosting/%s/",
+	Fields:         hostingFields,
+	DetailFields:   hostingDetailFields,
+	Columns:        []string{"id", "name", "starts_at", "ends_at", "address"},
+	ExcludeData:    true,
 }
 
 var activityResource = resourceSpec{
-	Name:         "activity",
-	Plural:       "activities",
-	Singular:     "activity",
-	ListPath:     "/v1/trip/%s/activities",
-	DetailPath:   "/v1/trip/%s/activity/%s",
-	FilterFlag:   "activity-type",
-	FilterParam:  "activityType",
-	Fields:       activityFields,
-	DetailFields: activityDetailFields,
-	Columns:      []string{"id", "name", "activity_type", "starts_at", "ends_at"},
-	ExcludeData:  true,
+	Name:           "activity",
+	Plural:         "activities",
+	Singular:       "activity",
+	ListPath:       "/v1/trip/%s/activities",
+	DetailPath:     "/v1/trip/%s/activity/%s",
+	ReadListPath:   "/v2/trip/%s/activities/",
+	ReadDetailPath: "/v2/trip/%s/activity/%s/",
+	FilterFlag:     "activity-type",
+	FilterParam:    "activityType",
+	Fields:         activityFields,
+	DetailFields:   activityDetailFields,
+	Columns:        []string{"id", "name", "activity_type", "starts_at", "ends_at"},
+	ExcludeData:    true,
 }
 
 var transportationResource = resourceSpec{
-	Name:         "transportation",
-	Plural:       "transportations",
-	Singular:     "transportation",
-	ListPath:     "/v1/trip/%s/transportations",
-	DetailPath:   "/v1/trip/%s/transportation/%s",
-	FilterFlag:   "transportation-type",
-	FilterParam:  "transportationType",
-	Fields:       transportationFields,
-	DetailFields: transportationDetailFields,
-	Columns:      []string{"id", "name", "transportation_type", "departure_at", "arrival_at"},
-	ExcludeData:  true,
+	Name:           "transportation",
+	Plural:         "transportations",
+	Singular:       "transportation",
+	ListPath:       "/v1/trip/%s/transportations",
+	DetailPath:     "/v1/trip/%s/transportation/%s",
+	ReadListPath:   "/v2/trip/%s/transportations/",
+	ReadDetailPath: "/v2/trip/%s/transportation/%s/",
+	FilterFlag:     "transportation-type",
+	FilterParam:    "transportationType",
+	Fields:         transportationFields,
+	DetailFields:   transportationDetailFields,
+	Columns:        []string{"id", "name", "transportation_type", "departure_at", "arrival_at"},
+	ExcludeData:    true,
 }
 
 var expenseResource = resourceSpec{
@@ -1159,8 +1167,8 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if spec.FilterFlag != "" && fs.String(spec.FilterFlag) != "" {
 			query.Set(spec.FilterParam, fs.String(spec.FilterFlag))
 		}
-		query = spec.responseQuery(query)
-		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.ListPath, apiPathSegment(tripID)), query, nil)
+		query = spec.readResponseQuery(query)
+		resp, err := a.client.RequestAllPages(ctx, "GET", spec.formatReadListPath(apiPathSegment(tripID)), query, nil)
 		if err != nil {
 			return err
 		}
@@ -1186,7 +1194,7 @@ func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) er
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", fmt.Sprintf(spec.DetailPath, apiPathSegment(tripID), apiPathSegment(id)), spec.responseQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "GET", spec.formatReadDetailPath(apiPathSegment(tripID), apiPathSegment(id)), spec.readResponseQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1280,6 +1288,23 @@ func (spec resourceSpec) responseQuery(query url.Values) url.Values {
 		return query
 	}
 	return tripDataQuery(query)
+}
+
+func (spec resourceSpec) readResponseQuery(query url.Values) url.Values {
+	if spec.ReadListPath != "" || spec.ReadDetailPath != "" {
+		return query
+	}
+	return spec.responseQuery(query)
+}
+
+func (spec resourceSpec) formatReadListPath(tripID string) string {
+	path := firstNonEmpty(spec.ReadListPath, spec.ListPath)
+	return fmt.Sprintf(path, tripID)
+}
+
+func (spec resourceSpec) formatReadDetailPath(tripID, id string) string {
+	path := firstNonEmpty(spec.ReadDetailPath, spec.DetailPath)
+	return fmt.Sprintf(path, tripID, id)
 }
 
 func positionalID(fs *flagSet, message string) (string, error) {
@@ -2025,7 +2050,7 @@ func commandCatalog() []commandSpec {
 				"tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url 'https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0'",
 				"tripsy trips update 42 --description 'Summer vacation'",
 			},
-			Gotchas: []string{"Use a real direct images.unsplash.com/photo-<numeric timestamp>-<asset hash> URL copied from an image result for cover_image_url; do not use an unsplash.com/photos page URL or short IDs such as photo-nWdsya5_Yms.", "GET /v1/trips returns a custom envelope with results but no count."},
+			Gotchas: []string{"Use a real direct images.unsplash.com/photo-<numeric timestamp>-<asset hash> URL copied from an image result for cover_image_url; do not use an unsplash.com/photos page URL or short IDs such as photo-nWdsya5_Yms.", "Trip and itinerary read commands use the lean v2 API and combine paginated results."},
 		},
 		resourceCommandSpec("hostings", "hosting", "Hotel and lodging plans", "tripsy hostings create --trip 42 --name 'Hotel Eden' --starts-at 2026-06-01T14:00:00Z"),
 		resourceCommandSpec("activities", "activity", "Scheduled or unscheduled trip activities", "tripsy activities create --trip 42 --name 'Colosseum Tour' --activity-type tour"),

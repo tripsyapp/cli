@@ -118,45 +118,51 @@ func (s *service) register(server *mcp.Server) {
 	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
 
 	s.registerResource(server, resourceSpec{
-		Prefix:       "activities",
-		Title:        "Activity",
-		PluralTitle:  "Activities",
-		ListPath:     "/v1/trip/%s/activities",
-		DetailPath:   "/v1/trip/%s/activity/%s",
-		FilterName:   "activity_type",
-		FilterParam:  "activityType",
-		FilterHint:   activityCategoryHint,
-		Description:  "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
-		CreateAdvice: "Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not bundle multiple stops into one activity.",
-		ExcludeData:  true,
-		SkipCreate:   true,
+		Prefix:         "activities",
+		Title:          "Activity",
+		PluralTitle:    "Activities",
+		ListPath:       "/v1/trip/%s/activities",
+		DetailPath:     "/v1/trip/%s/activity/%s",
+		ReadListPath:   "/v2/trip/%s/activities/",
+		ReadDetailPath: "/v2/trip/%s/activity/%s/",
+		FilterName:     "activity_type",
+		FilterParam:    "activityType",
+		FilterHint:     activityCategoryHint,
+		Description:    "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
+		CreateAdvice:   "Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not bundle multiple stops into one activity.",
+		ExcludeData:    true,
+		SkipCreate:     true,
 	})
 	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not use unsupported values such as sightseeing. "+activityCategoryHint, additive(), s.activityCreate)
 	s.registerResource(server, resourceSpec{
-		Prefix:       "hostings",
-		Title:        "Hosting",
-		PluralTitle:  "Hostings",
-		ListPath:     "/v1/trip/%s/hostings",
-		DetailPath:   "/v1/trip/%s/hosting/%s",
-		Description:  "Hotel and lodging plans.",
-		CreateAdvice: "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, dates, and timezone when known.",
-		ExcludeData:  true,
-		SkipCreate:   true,
+		Prefix:         "hostings",
+		Title:          "Hosting",
+		PluralTitle:    "Hostings",
+		ListPath:       "/v1/trip/%s/hostings",
+		DetailPath:     "/v1/trip/%s/hosting/%s",
+		ReadListPath:   "/v2/trip/%s/hostings/",
+		ReadDetailPath: "/v2/trip/%s/hosting/%s/",
+		Description:    "Hotel and lodging plans.",
+		CreateAdvice:   "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, dates, and timezone when known.",
+		ExcludeData:    true,
+		SkipCreate:     true,
 	})
 	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
 	s.registerResource(server, resourceSpec{
-		Prefix:       "transportations",
-		Title:        "Transportation",
-		PluralTitle:  "Transportations",
-		ListPath:     "/v1/trip/%s/transportations",
-		DetailPath:   "/v1/trip/%s/transportation/%s",
-		FilterName:   "transportation_type",
-		FilterParam:  "transportationType",
-		FilterHint:   transportationCategoryHint,
-		Description:  "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
-		CreateAdvice: "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
-		ExcludeData:  true,
-		SkipCreate:   true,
+		Prefix:         "transportations",
+		Title:          "Transportation",
+		PluralTitle:    "Transportations",
+		ListPath:       "/v1/trip/%s/transportations",
+		DetailPath:     "/v1/trip/%s/transportation/%s",
+		ReadListPath:   "/v2/trip/%s/transportations/",
+		ReadDetailPath: "/v2/trip/%s/transportation/%s/",
+		FilterName:     "transportation_type",
+		FilterParam:    "transportationType",
+		FilterHint:     transportationCategoryHint,
+		Description:    "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
+		CreateAdvice:   "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
+		ExcludeData:    true,
+		SkipCreate:     true,
 	})
 	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
 	s.registerResource(server, resourceSpec{
@@ -224,6 +230,21 @@ func (s *service) do(ctx context.Context, req *mcp.CallToolRequest, method, path
 		return nil, err
 	}
 	resp, err := client.Request(ctx, method, path, query, body)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(summary) == "" {
+		summary = fmt.Sprintf("HTTP %d", resp.StatusCode)
+	}
+	return envelope(resp, summary), nil
+}
+
+func (s *service) doAllPages(ctx context.Context, req *mcp.CallToolRequest, method, path string, query url.Values, body any, summary string) (any, error) {
+	client := s.clientForRequest(req)
+	if err := requireToken(client); err != nil {
+		return nil, err
+	}
+	resp, err := client.RequestAllPages(ctx, method, path, query, body)
 	if err != nil {
 		return nil, err
 	}
