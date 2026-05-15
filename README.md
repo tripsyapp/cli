@@ -1,35 +1,39 @@
 # Tripsy CLI
 
-`tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`. The project also ships `tripsy-mcp`, a Model Context Protocol server that exposes typed tools for core Tripsy account and trip workflows.
+`tripsy` is a command-line client for the public Tripsy API at `https://api.tripsy.app`. The project also ships `tripsy-mcp`, a Model Context Protocol server that exposes typed Tripsy tools for agents and MCP-capable apps.
 
 API documentation is available at [docs.api.tripsy.app](https://docs.api.tripsy.app).
 
-The CLI follows the same practical shape as [Basecamp CLI](https://github.com/basecamp/basecamp-cli):
+## What You Get
 
-- usable human output in a terminal
-- JSON envelopes when piped or when `--json` is passed
-- breadcrumbs that suggest useful next commands
-- a command catalog for agents through `tripsy commands --json` and `tripsy <command> --help --agent`
-- secure token storage using the OS credential store when available, with explicit file fallback for automation
+- Human-readable terminal output by default.
+- JSON envelopes when output is piped or `--json` is passed.
+- Raw JSON data with `--quiet`.
+- Breadcrumbs that suggest useful next commands.
+- A command catalog for humans and agents through `tripsy commands --json`.
+- Secure token storage using the OS credential store when available, with explicit file fallback for automation.
+- A local or hosted MCP server for structured agent workflows.
 
-## Quick Start
+Agent-specific itinerary guidance does not belong in this README. Keep it in [AGENTS.md](./AGENTS.md) for repo-level agent instructions and [skills/tripsy/SKILL.md](./skills/tripsy/SKILL.md) for installable Codex skill guidance.
+
+## Install
+
+Install the latest GitHub release:
 
 ```sh
 curl -fsSL https://tripsy.app/install_cli | bash
 ```
 
-This installs the latest GitHub release into `~/.local/bin`, verifies the release checksum, installs `tripsy` and `tripsy-mcp`, and adds that directory to your shell PATH when needed.
+The installer downloads the latest release, verifies checksums, installs `tripsy` and `tripsy-mcp` into `~/.local/bin`, and adds that directory to your shell PATH when needed.
 
-## Other Installation Methods
-
-Install the latest published version with Go:
+Install with Go:
 
 ```sh
 go install github.com/tripsyapp/cli/cmd/tripsy@latest
 go install github.com/tripsyapp/cli/cmd/tripsy-mcp@latest
 ```
 
-Install a specific release with the script:
+Install a specific release:
 
 ```sh
 curl -fsSL https://tripsy.app/install_cli | TRIPSY_VERSION=1.2.3 bash
@@ -49,17 +53,7 @@ bin/tripsy --help
 bin/tripsy-mcp --version
 ```
 
-For development:
-
-```sh
-make fmt
-make check
-make vulncheck
-```
-
-`make fmt` applies the pinned Go formatter (`gofumpt`) across the Go source tree. `make fmt-check` verifies formatting without modifying files, and CI runs that check plus `go vet`, tests, and `govulncheck`.
-
-## Authentication
+## Authenticate
 
 Login with Tripsy credentials:
 
@@ -69,9 +63,7 @@ tripsy auth login --username you@example.com
 
 Interactive password prompts hide typed input on terminals. Tokens are stored in the OS credential store when available. On macOS, Tripsy uses Keychain by default.
 
-For automation, pass a token through `TRIPSY_TOKEN` or `tripsy auth token set`.
-
-Or configure an existing token:
+For automation, pass a token through `TRIPSY_TOKEN` or store one explicitly:
 
 ```sh
 tripsy auth token set YOUR_TOKEN
@@ -83,12 +75,6 @@ Non-secret CLI config is stored at:
 ~/.config/tripsy-cli/credentials.json
 ```
 
-For compatibility, file token storage is still available with:
-
-```sh
-TRIPSY_AUTH_BACKEND=file
-```
-
 Environment overrides:
 
 ```sh
@@ -98,89 +84,32 @@ TRIPSY_CONFIG_DIR=/custom/config/dir
 TRIPSY_AUTH_BACKEND=auto|keychain|file
 ```
 
-## MCP Server
+Use `TRIPSY_AUTH_BACKEND=file` only when you need file token storage for headless automation or compatibility.
 
-Use Tripsy's MCP server when an agent or app supports MCP. Two ways to connect:
+## CLI Tools
 
-### Hosted endpoint (recommended)
+Run `tripsy commands` for the current command catalog, or `tripsy commands --json` for agent-readable metadata.
 
-Tripsy operates a public MCP server at `https://mcp.tripsy.app`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`. The previous `https://mcp.tripsy.app/mcp` endpoint remains available for existing clients.
+| Command | Purpose | Subcommands |
+| --- | --- | --- |
+| `tripsy auth` | Authenticate and manage the stored API token. | `login`, `logout`, `status`, `token`, `reset-password`, `change-password` |
+| `tripsy me` | Read or update the current Tripsy profile. | `show`, `update` |
+| `tripsy trips` | List, create, inspect, update, and soft-delete trips. | `list`, `following`, `show`, `create`, `update`, `delete` |
+| `tripsy hostings` | Manage hotel and lodging plans scoped to a trip. | `list`, `show`, `create`, `update`, `delete` |
+| `tripsy activities` | Manage scheduled or unscheduled trip activities. | `list`, `show`, `create`, `update`, `delete` |
+| `tripsy transportations` | Manage flights, trains, cars, and other transport. | `list`, `show`, `create`, `update`, `delete` |
+| `tripsy expenses` | Manage trip expenses. | `list`, `show`, `create`, `update`, `delete` |
+| `tripsy collaborators` | List collaborators and pending invitations for a trip. | `list` |
+| `tripsy emails` | Manage alternative email addresses. | `list`, `add`, `delete` |
+| `tripsy inbox` | Review automation emails that still need manual handling. | `list`, `show`, `update`, `delete` |
+| `tripsy documents` | Get download URLs, move documents, attach links, upload files, and delete documents. | `get`, `update`, `attach`, `upload`, `delete` |
+| `tripsy uploads` | Create raw backend-signed S3 upload URLs. | `create` |
+| `tripsy request` | Make a raw Tripsy API request for routes without a friendly command. | none |
+| `tripsy commands` | Print the CLI command catalog. | none |
+| `tripsy doctor` | Check config, token presence, and authenticated API access. | none |
+| `tripsy version` | Print the Tripsy CLI version. | none |
 
-Example MCP client configuration:
-
-<img width="2778" height="2218" alt="CleanShot 2026-05-11 at 21 06 30@2x" src="https://github.com/user-attachments/assets/46f9aaf0-b6ed-4b17-9deb-ad3cf0aefd16" />
-
-On first use, the client opens the Tripsy OAuth consent screen. After approval, the client stores the bearer token and reuses it for every request.
-
-### Self-hosted
-
-Run `tripsy-mcp` locally when you want full control or a stdio transport. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
-
-Run the default stdio server:
-
-```sh
-tripsy-mcp
-```
-
-Example MCP client configuration:
-
-```json
-{
-  "mcpServers": {
-    "tripsy": {
-      "command": "tripsy-mcp"
-    }
-  }
-}
-```
-
-Run a local streamable HTTP server instead:
-
-```sh
-tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
-```
-
-The default HTTP endpoint path is `/mcp`, so this is equivalent to:
-
-```sh
-tripsy-mcp --transport http --http-addr 127.0.0.1:8787
-```
-
-To host your own remote MCP endpoint equivalent to `https://mcp.tripsy.app`, run the HTTP server behind TLS:
-
-```sh
-tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --disable-raw-request
-```
-
-Then proxy the public path to the local MCP server:
-
-```text
-https://mcp.tripsy.app/ -> http://127.0.0.1:8787/
-https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
-```
-
-HTTP MCP always requires each request to include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user. HTTP mode intentionally ignores `--token`, `TRIPSY_TOKEN`, keychain tokens, and legacy `credentials.json` tokens to avoid any server-side credential fallback.
-
-For public hosted servers, keep `--disable-raw-request` enabled unless you intentionally want to expose the broad `tripsy_raw_request` tool. The typed tools cover the core Tripsy workflows with a narrower API surface.
-
-When hosting the MCP server for OAuth-capable remote clients such as Claude or ChatGPT, configure the public MCP URL and Tripsy OAuth issuer so clients can discover the authorization flow:
-
-```sh
-TRIPSY_MCP_PUBLIC_URL=https://mcp.tripsy.app
-TRIPSY_OAUTH_ISSUER=https://my.tripsy.app
-TRIPSY_OAUTH_SCOPES="profile email"
-TRIPSY_API_BASE=https://api.tripsy.app
-```
-
-With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
-
-The MCP server exposes typed tools such as `tripsy_itinerary_guidance`, `tripsy_trips_create`, `tripsy_activities_create`, `tripsy_hostings_create`, `tripsy_transportations_create`, `tripsy_expenses_create`, `tripsy_collaborators_list`, and `tripsy_raw_request`. Tool schemas and descriptions carry the same itinerary guidance as the CLI docs: choose a real direct Unsplash CDN `cover_image_url`, create one item per stop or reservation, set precise categories, and include coordinates for map-ready items.
-
-Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present on the object.
-
-Use the CLI when you want direct terminal commands, shell scripts, or human-readable output. Use MCP when a model client should discover Tripsy operations through structured tool schemas instead of composing shell commands and parsing CLI help.
-
-## Examples
+Common examples:
 
 ```sh
 tripsy me show
@@ -189,108 +118,15 @@ tripsy trips following
 tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
 tripsy activities list --trip 42
 tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour --starts-at 2026-06-03T09:00:00Z --ends-at 2026-06-03T11:00:00Z --timezone Europe/Rome --address "Piazza del Colosseo, 1, 00184 Rome, Italy" --latitude 41.8902 --longitude 12.4922
+tripsy hostings create --trip 42 --name "Hotel Eden" --starts-at 2026-06-01T14:00:00Z --ends-at 2026-06-05T11:00:00Z --timezone Europe/Rome
 tripsy transportations create --trip 42 --name "Flight to Rome" --transportation-type airplane --departure-description JFK --arrival-description FCO
 tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR --date 2026-06-03T20:00:00Z
+tripsy documents upload boarding-pass.pdf --trip 42 --parent transportation:303
 tripsy request GET /v1/me --json
+tripsy doctor --verbose
 ```
 
-## Agent Itinerary Rules
-
-When building a Tripsy itinerary for a user or agent workflow:
-
-- Set trip dates whenever the itinerary needs day-by-day planning. Use trip date strings such as `2026-06-01`.
-- `trips list` and `tripsy_trips_list` include only trips where the authenticated user is travelling.
-- `trips following` and `tripsy_trips_following_list` include trips the authenticated user follows but is not travelling on.
-- `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
-- Choose a high-quality destination-specific Unsplash image for the trip cover when possible, and set it with `cover_image_url`.
-- Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. The app will add its own display parameters.
-- The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
-- Create one Tripsy item per actual stop, reservation, meal, tour, or activity. Do not combine a full day or multiple places into one activity.
-- Use exact ISO-8601 UTC datetimes for timed items, plus the local `timezone`, for example `2026-06-03T09:00:00Z`.
-- Set `latitude` and `longitude` for every location-based activity, hosting, and transportation endpoint so Tripsy's map is populated.
-- Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
-- Use `transportations` for flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar point-to-point movement.
-- For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
-- For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
-- Choose the most specific supported category slug for every activity.
-
-Avoid these common itinerary mistakes:
-
-- Do not use `unsplash.com/photos/...` as `cover_image_url`.
-- Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
-- Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
-- Do not put hotels or lodging into activities.
-- Do not put transfers into activities.
-- Do not omit coordinates when a location is known.
-- Do not use unsupported `activity_type` values such as `sightseeing`.
-
-Golden path payload shape:
-
-```json
-{
-  "trip": {
-    "name": "Rome",
-    "timezone": "Europe/Rome",
-    "starts_at": "2026-06-01",
-    "ends_at": "2026-06-05",
-    "cover_image_url": "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0"
-  },
-  "hosting": {
-    "name": "Hotel Eden",
-    "starts_at": "2026-06-01T14:00:00Z",
-    "ends_at": "2026-06-05T11:00:00Z",
-    "timezone": "Europe/Rome",
-    "address": "Via Ludovisi 49, 00187 Rome, Italy",
-    "latitude": 41.9081,
-    "longitude": 12.4882
-  },
-  "activity": {
-    "name": "Colosseum Tour",
-    "activity_type": "tour",
-    "starts_at": "2026-06-03T09:00:00Z",
-    "ends_at": "2026-06-03T11:00:00Z",
-    "timezone": "Europe/Rome",
-    "address": "Piazza del Colosseo, 1, 00184 Rome, Italy",
-    "latitude": 41.8902,
-    "longitude": 12.4922
-  },
-  "transfer": {
-    "name": "Transfer to Hotel Eden",
-    "transportation_type": "roadtrip",
-    "departure_description": "Rome Fiumicino Airport",
-    "departure_address": "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
-    "departure_latitude": 41.8003,
-    "departure_longitude": 12.2389,
-    "arrival_description": "Hotel Eden",
-    "arrival_address": "Via Ludovisi 49, 00187 Rome, Italy",
-    "arrival_latitude": 41.9081,
-    "arrival_longitude": 12.4882
-  }
-}
-```
-
-Activity category slugs:
-
-```text
-concert, fit, general, kids, museum, note, relax, restaurant, shopping,
-theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium,
-atm, bakery, bank, beach, brewery, campground, evCharger, fireStation,
-fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina,
-movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice,
-publicTransport, restroom, school, stadium, university, winery, zoo
-```
-
-Transportation category slugs:
-
-```text
-airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
-```
-
-Lodging category slug:
-
-```text
-lodging
-```
+Most trip subresource commands require `--trip <trip-id>` because the public API scopes those resources under a trip.
 
 ## Output
 
@@ -312,17 +148,134 @@ When output is piped, or when `--json` is passed, commands emit an envelope:
 
 Use `--quiet` to print raw JSON data only.
 
-## Command Coverage
+## MCP Server
 
-Friendly commands wrap the currently exposed public API:
+Use Tripsy's MCP server when an agent or app supports MCP. Prefer MCP for model-driven workflows because tools expose names, descriptions, schemas, structured results, and safety annotations.
 
-- auth/account: `auth`, `me`
-- trips: `trips`
-- trip subresources: `hostings`, `activities`, `transportations`, `expenses`, `collaborators`
+### Hosted Endpoint
 
-Use `tripsy request METHOD PATH` for any exposed API route that does not yet have a tailored command.
+Tripsy operates a public MCP server at `https://mcp.tripsy.app`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`.
 
-The MCP server currently covers account, trips, trip subresources, collaborators, and supported raw requests.
+The previous `https://mcp.tripsy.app/mcp` endpoint remains available for existing clients.
+
+### Self-Hosted Stdio
+
+Run `tripsy-mcp` locally when you want full control or stdio transport. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
+
+```sh
+tripsy-mcp
+```
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "tripsy": {
+      "command": "tripsy-mcp"
+    }
+  }
+}
+```
+
+### Self-Hosted HTTP
+
+Run a local streamable HTTP server:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp
+```
+
+The default HTTP endpoint path is `/mcp`, so this is equivalent:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787
+```
+
+To host a remote MCP endpoint, run the HTTP server behind TLS:
+
+```sh
+tripsy-mcp --transport http --http-addr 127.0.0.1:8787 --http-path /mcp --disable-raw-request
+```
+
+Then proxy public paths to the local MCP server:
+
+```text
+https://mcp.tripsy.app/ -> http://127.0.0.1:8787/
+https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
+```
+
+HTTP MCP always requires each request to include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user.
+
+HTTP mode intentionally ignores `--token`, `TRIPSY_TOKEN`, keychain tokens, and legacy `credentials.json` tokens to avoid server-side credential fallback. For public hosted servers, keep `--disable-raw-request` enabled unless you intentionally want to expose the broader `tripsy_raw_request` tool.
+
+For OAuth-capable remote clients, configure the public MCP URL and Tripsy OAuth issuer:
+
+```sh
+TRIPSY_MCP_PUBLIC_URL=https://mcp.tripsy.app
+TRIPSY_OAUTH_ISSUER=https://my.tripsy.app
+TRIPSY_OAUTH_SCOPES="profile email"
+TRIPSY_API_BASE=https://api.tripsy.app
+```
+
+With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
+
+## MCP Tools
+
+The MCP server exposes the tools below. All tools are closed-world: they only interact with the Tripsy API for the authenticated Tripsy account, not arbitrary external services or URLs.
+
+Read-only tools:
+
+- `tripsy_status`: inspect MCP configuration and authentication state without revealing the token.
+- `tripsy_itinerary_guidance`: return concise itinerary-building guidance for agents.
+- `tripsy_me_show`: return the authenticated Tripsy profile.
+- `tripsy_trips_list`: list trips where the authenticated user is travelling.
+- `tripsy_trips_following_list`: list trips the authenticated user follows but is not travelling on.
+- `tripsy_trips_show`: fetch one trip by id.
+- `tripsy_activities_list`: list activities for a trip.
+- `tripsy_activities_show`: fetch one activity by id.
+- `tripsy_hostings_list`: list hostings for a trip.
+- `tripsy_hostings_show`: fetch one hosting by id.
+- `tripsy_transportations_list`: list transportations for a trip.
+- `tripsy_transportations_show`: fetch one transportation by id.
+- `tripsy_expenses_list`: list expenses for a trip.
+- `tripsy_expenses_show`: fetch one expense by id.
+- `tripsy_collaborators_list`: list collaborators and pending invitations for a trip.
+
+Write tools:
+
+- `tripsy_me_update`: update current profile fields.
+- `tripsy_trips_create`: create a trip.
+- `tripsy_trips_update`: update a trip.
+- `tripsy_activities_create`: create an activity.
+- `tripsy_activities_update`: update an activity.
+- `tripsy_hostings_create`: create a hosting.
+- `tripsy_hostings_update`: update a hosting.
+- `tripsy_transportations_create`: create a transportation.
+- `tripsy_transportations_update`: update a transportation.
+- `tripsy_expenses_create`: create an expense.
+- `tripsy_expenses_update`: update an expense.
+
+Destructive tools:
+
+- `tripsy_trips_delete`: soft-delete a trip.
+- `tripsy_activities_delete`: delete an activity.
+- `tripsy_hostings_delete`: delete a hosting.
+- `tripsy_transportations_delete`: delete a transportation.
+- `tripsy_expenses_delete`: delete an expense.
+- `tripsy_raw_request`: make a raw request to supported Tripsy public API endpoints. This tool is disabled when the MCP server runs with `--disable-raw-request`.
+
+Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present.
+
+## Development
+
+```sh
+make fmt
+make check
+make vulncheck
+```
+
+`make fmt` applies the pinned Go formatter (`gofumpt`) across the Go source tree. `make fmt-check` verifies formatting without modifying files. CI runs formatting checks, `go vet`, tests, and `govulncheck`.
 
 ## Publishing
 
