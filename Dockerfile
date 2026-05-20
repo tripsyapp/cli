@@ -25,4 +25,4 @@ USER tripsy
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "tripsy-mcp --transport http --http-addr 0.0.0.0:${PORT} --http-path /mcp --disable-raw-request"]
+CMD ["sh", "-c", "tripsy-mcp --transport http --http-addr 0.0.0.0:${PORT} --http-path /mcp --http-stateless --disable-raw-request"]

@@ -16,8 +16,19 @@ primary_region = 'iad'
   min_machines_running = 1
   processes = ['app']
 
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = '10s'
+    interval = '30s'
+    method = 'GET'
+    timeout = '5s'
+    path = '/healthz'
+
 [[vm]]
-  memory = '1gb'
+  memory = '2gb'
   cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 1024
+  cpus = 2

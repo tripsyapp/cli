@@ -110,7 +110,7 @@ func TestStreamableHTTPListToolsThroughHostedHandlerStack(t *testing.T) {
 	server := mcpserver.NewWithClientOptions(api.NewClient("https://api.test", ""), config.NewStore(t.TempDir()), mcpserver.Options{DisableRawRequest: true})
 	streamHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return server
-	}, &mcp.StreamableHTTPOptions{})
+	}, &mcp.StreamableHTTPOptions{Stateless: true})
 	httpHandler := explicitToolAnnotationsHTTPHandler{next: streamHandler}
 	verifier := func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		if token != "test-token" {
