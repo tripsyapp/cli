@@ -13,7 +13,7 @@ import (
 	"github.com/tripsyapp/cli/internal/coverimage"
 )
 
-const activityCategoryHint = "Built-in activity_type slugs for Activity objects: concert, fit, general, kids, museum, note, relax, restaurant, shopping, theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium, atm, bakery, bank, beach, brewery, campground, evCharger, fireStation, fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina, movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice, publicTransport, restroom, school, stadium, university, winery, zoo. Activity objects may also use visible custom category slugs returned by the category tools or /v1/categories APIs through activity_type. Custom category slugs are only valid on Activity objects, not lodging, transportation, expense, or trip resources. MCP clients must resolve those custom slugs to display the correct activity category name, icon, and color."
+const activityCategoryHint = "Built-in activity_type slugs for Activity objects: concert, fit, general, kids, museum, note, relax, restaurant, shopping, theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium, atm, bakery, bank, beach, brewery, campground, evCharger, fireStation, fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina, movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice, publicTransport, restroom, school, stadium, university, winery, zoo. Activity objects may also use visible custom category slugs returned by tripsy_categories_list through activity_type. Custom category slugs are only valid on Activity objects, not lodging, transportation, expense, or trip resources. MCP clients must resolve those custom slugs to display the correct activity category name, icon, and color."
 
 const transportationCategoryHint = "Supported transportation_type slugs: airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk."
 
@@ -55,7 +55,7 @@ type tripCreateInput struct {
 	Description   string         `json:"description,omitempty" jsonschema:"Optional trip description."`
 	StartsAt      string         `json:"starts_at,omitempty" jsonschema:"Trip start date as YYYY-MM-DD, for example 2026-06-01."`
 	EndsAt        string         `json:"ends_at,omitempty" jsonschema:"Trip end date as YYYY-MM-DD, for example 2026-06-15."`
-	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific real direct Unsplash CDN URL copied from an image result, for example https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Must use an images.unsplash.com/photo-<numeric timestamp>-<asset hash> path; do not use unsplash.com/photos/... or short IDs such as photo-nWdsya5_Yms. Confirm the URL is reachable and not a 404 before saving it."`
+	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific real direct Unsplash CDN URL copied from an image result, for example https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Must use an images.unsplash.com/photo-<numeric timestamp>-<asset hash> path; do not use unsplash.com/photos/... or short IDs such as photo-nWdsya5_Yms. If the client has external URL access, check that the image URL is reachable and not a 404 before saving it."`
 	HasDates      *bool          `json:"has_dates,omitempty" jsonschema:"Whether the trip has explicit dates."`
 	NumberOfDays  *int           `json:"number_of_days,omitempty" jsonschema:"Number of days for an undated trip."`
 	Hidden        *bool          `json:"hidden,omitempty" jsonschema:"Whether the trip should be hidden."`
@@ -65,7 +65,7 @@ type activityCreateInput struct {
 	TripID       string         `json:"trip_id" jsonschema:"Tripsy trip id."`
 	Data         map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name         string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
-	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Activity category slug. Use a built-in Activity category slug or a visible custom category slug returned by the category tools or /v1/categories APIs. Custom category slugs are only valid on Activity objects through activity_type. Use the most specific available slug; do not invent values such as sightseeing."`
+	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Activity category slug. Use a built-in Activity category slug or a visible custom category slug returned by tripsy_categories_list. Custom category slugs are only valid on Activity objects through activity_type. Use the most specific available slug; do not invent ad hoc values such as sightseeing."`
 	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; set timezone for local display."`
 	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; set timezone for local display."`
 	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
@@ -257,10 +257,10 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"For leisure or destination trips, choose a destination-specific direct Unsplash image URL for cover_image_url.",
 		"cover_image_url must be a real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0.",
 		"The images.unsplash.com path must be photo-<numeric timestamp>-<asset hash>; never use unsplash.com/photos/... pages or short IDs such as https://images.unsplash.com/photo-nWdsya5_Yms.",
-		"Before saving cover_image_url, confirm the URL is reachable and does not return a 404.",
+		"The MCP server validates cover_image_url shape. If the client also has external URL access, check that the image URL is reachable and does not return a 404 before saving it.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through activity_type.",
-		"When displaying activities, resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories through the category tools or /v1/categories APIs and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
+		"When displaying activities, resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
 		"Use transportations for point-to-point movement.",
 		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
@@ -272,12 +272,12 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 	doNot := []string{
 		"Do not use unsplash.com/photos/... as cover_image_url.",
 		"Do not invent or transform Unsplash photo IDs into images.unsplash.com URLs; copy the real numeric photo asset URL.",
-		"Do not save a cover_image_url until you have confirmed it is not invalid or returning 404.",
+		"Do not save malformed cover_image_url values. Check for 404 only when the client has external URL access.",
 		"Do not create one activity named Day 1 itinerary or similar that contains multiple stops.",
 		"Do not put hotels or lodging into activities.",
 		"Do not put transfers into activities.",
 		"Do not omit coordinates when a location is known.",
-		"Do not treat an unknown activity_type as invalid until checking whether it is a visible custom category. Do not invent unsupported values such as sightseeing.",
+		"Do not treat an unknown activity_type as invalid until checking whether it is a visible custom category. Do not invent ad hoc values such as sightseeing.",
 	}
 	example := map[string]any{
 		"trip": map[string]any{

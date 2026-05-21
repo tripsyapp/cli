@@ -25,12 +25,12 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - When creating a destination trip, choose a beautiful destination-specific Unsplash image and set it as `cover_image_url`.
 - Use a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. Tripsy will add the needed rendering parameters.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not use the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
-- Before saving a trip `cover_image_url`, confirm the URL is valid, reachable, and not returning a `404`.
+- Before saving a trip `cover_image_url`, validate that it is a real direct Unsplash CDN URL. If the client has external URL access, also confirm the image URL is reachable and not returning a `404`.
 - For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
 - Use the most specific supported category slug for Activity `activity_type`; do not default to `general` or `tour` when a better category exists.
-- Activities can use either a built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` outside the built-in list, fetch visible custom categories through the category tools or `/v1/categories` APIs and resolve the slug there before displaying the category name, icon, or color.
+- Activities can use either a built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` outside the built-in list, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and resolve the slug there before displaying the category name, icon, or color.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
@@ -41,18 +41,18 @@ Avoid these common itinerary mistakes:
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
 - Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
-- Do not save a `cover_image_url` until you have confirmed it is not invalid or returning `404`.
+- Do not save a malformed `cover_image_url`; check for `404` only when the client has external URL access.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
 - Do not omit coordinates when a location is known.
-- Do not treat an unknown Activity `activity_type` as invalid until you have checked whether it is a visible custom category. Do not invent unsupported values such as `sightseeing`.
+- Do not treat an unknown Activity `activity_type` as invalid until you have checked whether it is a visible custom category. Do not invent ad hoc values such as `sightseeing`.
 
 ## MCP Server
 
 Use MCP when available because tools expose schemas, descriptions, safety annotations, and structured results without requiring shell command composition.
 
-MCP tool inputs follow the same itinerary rules as the CLI: timed fields are UTC, timezone fields carry the local display timezone, trip cover URLs must be reachable direct Unsplash CDN URLs, and delete tools can be used when requested because deletes can be undone if necessary.
+MCP tool inputs follow the same itinerary rules as the CLI: timed fields are UTC, timezone fields carry the local display timezone, trip cover URLs must be direct Unsplash CDN URLs, and delete tools can be used when requested because deletes can be undone if necessary.
 
 Common tool names:
 
@@ -250,7 +250,7 @@ Trip covers:
 - Prefer a destination-specific Unsplash image for leisure trips.
 - Use the direct `images.unsplash.com` image URL copied from the actual image result, including Unsplash metadata query parameters such as `ixid` and `ixlib`.
 - Valid cover URLs use the `photo-<numeric timestamp>-<asset hash>` path format, for example `photo-1562869929-bda0650edb1f`; short ID paths such as `photo-nWdsya5_Yms` are invalid.
-- Confirm the final `cover_image_url` is reachable and not returning `404` before saving it on the trip.
+- If the client has external URL access, confirm the final `cover_image_url` is reachable and not returning `404` before saving it on the trip.
 - Do not add crop, width, quality, or format parameters unless the user explicitly asks; the Tripsy app derives the right display parameters.
 
 ## Itinerary Resources
@@ -354,7 +354,7 @@ tripsy activities delete --trip TRIP_ID ACTIVITY_ID --json
 
 Useful activity fields: `activity_type`, `period`, `starts_at`, `ends_at`, `all_day`, `name`, `description`, `phone`, `website`, `checked`, `address`, `longitude`, `latitude`, `notes`, `timezone`, `price`, `currency`, and `assigned_users`.
 
-When displaying activities, resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through the category tools or `/v1/categories` APIs and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
+When displaying activities, resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
 
 Hostings:
 

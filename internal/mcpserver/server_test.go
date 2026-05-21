@@ -124,11 +124,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	tripsCreate := findTool(res.Tools, "tripsy_trips_create")
-	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "photo-nWdsya5_Yms") || !strings.Contains(tripsCreate.Description, "does not return a 404") {
+	if !strings.Contains(tripsCreate.Description, "cover_image_url") || !strings.Contains(tripsCreate.Description, "https://images.unsplash.com/photo-") || !strings.Contains(tripsCreate.Description, "photo-nWdsya5_Yms") || !strings.Contains(tripsCreate.Description, "MCP server validates") || !strings.Contains(tripsCreate.Description, "external URL access") {
 		t.Fatalf("trips create description should mention reachable Unsplash cover_image_url guidance: %q", tripsCreate.Description)
 	}
 	tripsCreateSchema := toolSchemaString(t, tripsCreate)
-	if !strings.Contains(tripsCreateSchema, "cover_image_url") || !strings.Contains(tripsCreateSchema, "numeric timestamp") || !strings.Contains(tripsCreateSchema, "photo-nWdsya5_Yms") || !strings.Contains(tripsCreateSchema, "not a 404") || !strings.Contains(tripsCreateSchema, "starts_at") {
+	if !strings.Contains(tripsCreateSchema, "cover_image_url") || !strings.Contains(tripsCreateSchema, "numeric timestamp") || !strings.Contains(tripsCreateSchema, "photo-nWdsya5_Yms") || !strings.Contains(tripsCreateSchema, "external URL access") || !strings.Contains(tripsCreateSchema, "starts_at") {
 		t.Fatalf("trips create input schema should expose typed itinerary fields: %s", tripsCreateSchema)
 	}
 	tripsDelete := findTool(res.Tools, "tripsy_trips_delete")
@@ -137,11 +137,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
-	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
+	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
 		t.Fatalf("activities create description should mention time, category, and coordinates guidance: %q", activitiesCreate.Description)
 	}
 	activitiesCreateSchema := toolSchemaString(t, activitiesCreate)
-	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "local display") || !strings.Contains(activitiesCreateSchema, "latitude") {
+	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "local display") || !strings.Contains(activitiesCreateSchema, "latitude") {
 		t.Fatalf("activities create input schema should expose typed activity fields: %s", activitiesCreateSchema)
 	}
 
@@ -253,7 +253,7 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 		"https://images.unsplash.com/photo-",
 		"photo-nWdsya5_Yms",
 		"unsplash.com/photos",
-		"does not return a 404",
+		"external URL access",
 		"one Tripsy item per actual stop",
 		"UTC ISO-8601 timestamps",
 		"correct timezone",
@@ -262,10 +262,10 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 		"omit name unless the user provided one",
 		"transportation_type roadtrip",
 		"need to be undone",
-		"fetch visible custom categories",
+		"tripsy_categories_list",
 		"only valid on Activity objects",
 		"Do not treat an unknown activity_type as invalid",
-		"Do not invent unsupported values such as sightseeing",
+		"Do not invent ad hoc values such as sightseeing",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("itinerary guidance missing %q in: %s", want, text)
