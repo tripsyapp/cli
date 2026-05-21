@@ -29,7 +29,8 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
-- Use the most specific supported category slug for `activity_type`; do not default to `general` or `tour` when a better category exists.
+- Use the most specific supported category slug for Activity `activity_type`; do not default to `general` or `tour` when a better category exists.
+- Activities can use either a built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` outside the built-in list, fetch visible custom categories through the category tools or `/v1/categories` APIs and resolve the slug there before displaying the category name, icon, or color.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
@@ -45,7 +46,7 @@ Avoid these common itinerary mistakes:
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
 - Do not omit coordinates when a location is known.
-- Do not use unsupported `activity_type` values such as `sightseeing`.
+- Do not treat an unknown Activity `activity_type` as invalid until you have checked whether it is a visible custom category. Do not invent unsupported values such as `sightseeing`.
 
 ## MCP Server
 
@@ -352,6 +353,8 @@ tripsy activities delete --trip TRIP_ID ACTIVITY_ID --json
 ```
 
 Useful activity fields: `activity_type`, `period`, `starts_at`, `ends_at`, `all_day`, `name`, `description`, `phone`, `website`, `checked`, `address`, `longitude`, `latitude`, `notes`, `timezone`, `price`, `currency`, and `assigned_users`.
+
+When displaying activities, resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through the category tools or `/v1/categories` APIs and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
 
 Hostings:
 

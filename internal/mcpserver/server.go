@@ -136,11 +136,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:    "activityType",
 		FilterHint:     activityCategoryHint,
 		Description:    "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
-		CreateAdvice:   "Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, use UTC starts_at/ends_at values with the local timezone for the activity location, and do not bundle multiple stops into one activity.",
+		CreateAdvice:   "Set activity_type to the most specific built-in slug or visible custom category slug, include address plus latitude/longitude for map-ready location items, use UTC starts_at/ends_at values with the local timezone for the activity location, and do not bundle multiple stops into one activity. Custom category slugs are only valid on Activity objects through activity_type. MCP clients displaying activities must resolve non-built-in activity_type values through the category tools or /v1/categories APIs so the correct custom activity category name, icon, and color are shown.",
 		ExcludeData:    true,
 		SkipCreate:     true,
 	})
-	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Timed values are always UTC ISO-8601 timestamps; set timezone to the activity location's local IANA timezone so Tripsy displays local time correctly. Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not use unsupported values such as sightseeing. "+activityCategoryHint, additive(), s.activityCreate)
+	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Timed values are always UTC ISO-8601 timestamps; set timezone to the activity location's local IANA timezone so Tripsy displays local time correctly. Set activity_type to the most specific built-in slug or visible custom category slug, include address plus latitude/longitude for map-ready location items, and do not invent unsupported values such as sightseeing. Custom category slugs are only valid on Activity objects through activity_type. MCP clients displaying activities must resolve non-built-in activity_type values through the category tools or /v1/categories APIs so the correct custom activity category name, icon, and color are shown. "+activityCategoryHint, additive(), s.activityCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:         "hostings",
 		Title:          "Hosting",

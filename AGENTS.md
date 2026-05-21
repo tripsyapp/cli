@@ -30,7 +30,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
-- Activities can use either a documented built-in `activity_type` slug or a visible custom category slug. If an activity has an `activity_type` that is not in the built-in list, fetch visible custom categories through the category tools or `/v1/categories` APIs and resolve the slug there before displaying the category name, icon, or color.
+- Activities can use either a documented built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` that is not in the built-in list, fetch visible custom categories through the category tools or `/v1/categories` APIs and resolve the slug there before displaying the category name, icon, or color.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
 - For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - Delete operations can be executed when requested. Tripsy deletes are recoverable, so they can be undone if necessary.
@@ -93,7 +93,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 
 ## Activity Categories
 
-Activities normally use one of these built-in category slugs. Activities may also use custom category slugs returned by `GET /v1/categories` or the typed category MCP tools. MCP clients that render activities must handle both cases: display the built-in category metadata for known built-in slugs, and resolve custom slugs from visible custom categories so the correct custom category name is shown.
+Activities normally use one of these built-in category slugs. Activities may also use custom category slugs returned by `GET /v1/categories` or the typed category MCP tools. Custom category slugs are only for Activity objects through `activity_type`. MCP clients that render activities must handle both cases: display the built-in category metadata for known built-in slugs, and resolve custom slugs from visible custom categories so the correct custom category name is shown.
 
 ```text
 concert, fit, general, kids, museum, note, relax, restaurant, shopping,
