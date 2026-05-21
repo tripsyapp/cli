@@ -226,6 +226,14 @@ With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Aut
 
 The MCP server exposes the tools below. All tools are closed-world: they only interact with the Tripsy API for the authenticated Tripsy account, not arbitrary external services or URLs.
 
+### MCP Tool Conventions
+
+- Timed fields are always UTC ISO-8601 timestamps, for example `2026-06-03T09:00:00Z`. Pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`) so Tripsy displays the time in the correct timezone for the activity, lodging, departure point, or arrival point.
+- Trip date fields use calendar dates such as `2026-06-01`; itinerary item times use UTC timestamps.
+- Activity `activity_type` values may be built-in category slugs or visible custom category slugs. When an MCP client sees an activity type that is not one of the documented built-in categories, it must fetch visible custom categories through the typed category tools or `/v1/categories` APIs and resolve the slug there before displaying the activity category name, icon, or color.
+- For trip covers, save only a real direct Unsplash CDN `cover_image_url` copied from an image result. Confirm the URL is valid, reachable, and not returning a `404` before creating or updating the trip.
+- Delete tools can be executed when requested. Tripsy delete operations are recoverable, so they can be undone if necessary; use list filters such as `deleted` when you need to inspect deleted records.
+
 Read-only tools:
 
 - `tripsy_status`: inspect MCP configuration and authentication state without revealing the token.
@@ -271,6 +279,8 @@ Destructive tools:
 - `tripsy_expenses_delete`: delete an expense.
 - `tripsy_categories_delete`: delete a custom activity category.
 - `tripsy_raw_request`: make a raw request to supported Tripsy public API endpoints. This tool is disabled when the MCP server runs with `--disable-raw-request`.
+
+Delete operations are available through MCP and may be used when the user asks to remove data. They are recoverable if they need to be undone later.
 
 Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present.
 

@@ -55,7 +55,7 @@ type tripCreateInput struct {
 	Description   string         `json:"description,omitempty" jsonschema:"Optional trip description."`
 	StartsAt      string         `json:"starts_at,omitempty" jsonschema:"Trip start date as YYYY-MM-DD, for example 2026-06-01."`
 	EndsAt        string         `json:"ends_at,omitempty" jsonschema:"Trip end date as YYYY-MM-DD, for example 2026-06-15."`
-	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific real direct Unsplash CDN URL copied from an image result, for example https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Must use an images.unsplash.com/photo-<numeric timestamp>-<asset hash> path; do not use unsplash.com/photos/... or short IDs such as photo-nWdsya5_Yms."`
+	CoverImageURL string         `json:"cover_image_url,omitempty" jsonschema:"Destination-specific real direct Unsplash CDN URL copied from an image result, for example https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Must use an images.unsplash.com/photo-<numeric timestamp>-<asset hash> path; do not use unsplash.com/photos/... or short IDs such as photo-nWdsya5_Yms. Confirm the URL is reachable and not a 404 before saving it."`
 	HasDates      *bool          `json:"has_dates,omitempty" jsonschema:"Whether the trip has explicit dates."`
 	NumberOfDays  *int           `json:"number_of_days,omitempty" jsonschema:"Number of days for an undated trip."`
 	Hidden        *bool          `json:"hidden,omitempty" jsonschema:"Whether the trip should be hidden."`
@@ -66,9 +66,9 @@ type activityCreateInput struct {
 	Data         map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name         string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
 	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Supported activity category slug. Use the most specific supported slug; do not invent values such as sightseeing."`
-	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z."`
-	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z."`
-	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity, such as Europe/Rome."`
+	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; set timezone for local display."`
+	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; set timezone for local display."`
+	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
 	Address      string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
 	Latitude     *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
 	Longitude    *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
@@ -83,9 +83,9 @@ type hostingCreateInput struct {
 	TripID      string         `json:"trip_id" jsonschema:"Tripsy trip id."`
 	Data        map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name        string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
-	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z."`
-	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z."`
-	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging, such as Europe/Rome."`
+	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; set timezone for local display."`
+	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; set timezone for local display."`
+	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
 	Address     string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
 	Latitude    *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
 	Longitude   *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
@@ -103,14 +103,14 @@ type transportationCreateInput struct {
 	Name                 string         `json:"name,omitempty" jsonschema:"Transportation segment name. For flights, omit name unless the user provided one."`
 	TransportationType   string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use roadtrip."`
 	DepartureDescription string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For flights, use the departure airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known."`
-	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure IANA timezone."`
+	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; set departure_timezone for local display."`
+	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. Tripsy uses this with the UTC departure_at value to display local departure time correctly."`
 	DepartureAddress     string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
 	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for flight airports and transfer activities when known."`
 	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for flight airports and transfer activities when known."`
 	ArrivalDescription   string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For flights, use the arrival airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known."`
-	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival IANA timezone."`
+	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known. Timed values are always UTC; set arrival_timezone for local display."`
+	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival location IANA timezone. Tripsy uses this with the UTC arrival_at value to display local arrival time correctly."`
 	ArrivalAddress       string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
 	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for flight airports and transfer activities when known."`
 	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for flight airports and transfer activities when known."`
@@ -135,7 +135,7 @@ type listInput struct {
 	Fields        []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter. For trip lists, owner, guests, has_dates, starts_at, and ends_at are always included so clients can filter current-user is_travelling/following status and interpret undated trips correctly."`
 	FieldsExclude []string `json:"fields_exclude,omitempty" jsonschema:"Optional response field deny-list. Sent as the API fields! query parameter."`
 	UpdatedSince  string   `json:"updated_since,omitempty" jsonschema:"Optional ISO-8601 timestamp for incremental list filtering."`
-	Deleted       bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it."`
+	Deleted       bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it; useful when a recoverable delete needs to be inspected or undone."`
 }
 
 type tripUpdateInput struct {
@@ -148,7 +148,7 @@ type subresourceListInput struct {
 	Fields             []string `json:"fields,omitempty" jsonschema:"Optional response field allow-list. Sent as the API fields query parameter."`
 	FieldsExclude      []string `json:"fields_exclude,omitempty" jsonschema:"Optional response field deny-list. Sent as the API fields! query parameter."`
 	UpdatedSince       string   `json:"updated_since,omitempty" jsonschema:"Optional ISO-8601 timestamp for incremental list filtering."`
-	Deleted            bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it."`
+	Deleted            bool     `json:"deleted,omitempty" jsonschema:"When true, list deleted records where the endpoint supports it; useful when a recoverable delete needs to be inspected or undone."`
 	ActivityType       string   `json:"activity_type,omitempty" jsonschema:"Optional activity category slug filter. Only used by activities."`
 	TransportationType string   `json:"transportation_type,omitempty" jsonschema:"Optional transportation type slug filter. Only used by transportations."`
 }
@@ -257,18 +257,21 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"For leisure or destination trips, choose a destination-specific direct Unsplash image URL for cover_image_url.",
 		"cover_image_url must be a real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0.",
 		"The images.unsplash.com path must be photo-<numeric timestamp>-<asset hash>; never use unsplash.com/photos/... pages or short IDs such as https://images.unsplash.com/photo-nWdsya5_Yms.",
+		"Before saving cover_image_url, confirm the URL is reachable and does not return a 404.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific supported activity_type slug.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
 		"Use transportations for point-to-point movement.",
 		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
 		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
-		"Use exact UTC ISO-8601 timestamps for timed items and set the relevant local timezone.",
+		"Use exact UTC ISO-8601 timestamps for every timed value and set the relevant local timezone so Tripsy displays the time in the correct timezone for the item's location.",
 		"Add address, latitude, and longitude for map-relevant activities, hostings, and transportation endpoints.",
+		"Delete tools may be executed when requested; Tripsy delete operations are recoverable if they need to be undone.",
 	}
 	doNot := []string{
 		"Do not use unsplash.com/photos/... as cover_image_url.",
 		"Do not invent or transform Unsplash photo IDs into images.unsplash.com URLs; copy the real numeric photo asset URL.",
+		"Do not save a cover_image_url until you have confirmed it is not invalid or returning 404.",
 		"Do not create one activity named Day 1 itinerary or similar that contains multiple stops.",
 		"Do not put hotels or lodging into activities.",
 		"Do not put transfers into activities.",

@@ -18,13 +18,14 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Follow `breadcrumbs` when navigating related resources.
 - Do not print stored tokens unless the user explicitly asks for token output.
 - Do not ask the user for passwords in chat. Ask them to run `tripsy auth login --username USERNAME` locally, or use `TRIPSY_TOKEN`.
-- Use exact ISO-8601 UTC datetimes for timed items, for example `2026-06-03T09:00:00Z`.
+- Use exact ISO-8601 UTC datetimes for every timed value, for example `2026-06-03T09:00:00Z`. Always pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`) so Tripsy displays the time in the correct timezone for the item's location.
 - For trip dates, use date strings such as `2026-06-01`.
 - `trips list` returns trips where the authenticated user is travelling. Use `trips following` for trips the user follows but is not travelling on.
 - `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - When creating a destination trip, choose a beautiful destination-specific Unsplash image and set it as `cover_image_url`.
 - Use a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`. Tripsy will add the needed rendering parameters.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not use the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
+- Before saving a trip `cover_image_url`, confirm the URL is valid, reachable, and not returning a `404`.
 - For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
 - Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
@@ -33,12 +34,13 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
 - For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
-- For destructive commands, state what will be deleted before running the command when the user has not already been explicit.
+- Delete operations can be executed when requested. Tripsy deletes are recoverable, so they can be undone if necessary. State what will be deleted before running the command when the user has not already been explicit.
 
 Avoid these common itinerary mistakes:
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
 - Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
+- Do not save a `cover_image_url` until you have confirmed it is not invalid or returning `404`.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
@@ -48,6 +50,8 @@ Avoid these common itinerary mistakes:
 ## MCP Server
 
 Use MCP when available because tools expose schemas, descriptions, safety annotations, and structured results without requiring shell command composition.
+
+MCP tool inputs follow the same itinerary rules as the CLI: timed fields are UTC, timezone fields carry the local display timezone, trip cover URLs must be reachable direct Unsplash CDN URLs, and delete tools can be used when requested because deletes can be undone if necessary.
 
 Common tool names:
 
@@ -245,6 +249,7 @@ Trip covers:
 - Prefer a destination-specific Unsplash image for leisure trips.
 - Use the direct `images.unsplash.com` image URL copied from the actual image result, including Unsplash metadata query parameters such as `ixid` and `ixlib`.
 - Valid cover URLs use the `photo-<numeric timestamp>-<asset hash>` path format, for example `photo-1562869929-bda0650edb1f`; short ID paths such as `photo-nWdsya5_Yms` are invalid.
+- Confirm the final `cover_image_url` is reachable and not returning `404` before saving it on the trip.
 - Do not add crop, width, quality, or format parameters unless the user explicitly asks; the Tripsy app derives the right display parameters.
 
 ## Itinerary Resources
@@ -257,7 +262,7 @@ Tripsy works best when the itinerary is structured as separate timed items:
 
 - Use one activity per place or experience, for example separate records for a museum, lunch, park, and evening event.
 - Avoid day-summary activities such as "Day 1: Museum, Lunch and Park" unless the user explicitly asks for a note-style summary.
-- Prefer start and end times for activities. Store timed values as UTC ISO-8601 strings and set the local `timezone`.
+- Prefer start and end times for activities. Store every timed value as a UTC ISO-8601 string and set the local `timezone` for the activity location.
 - Include `address`, `latitude`, and `longitude` whenever a location is known.
 - Use `hostings` for hotels/lodging and `transportations` for transport segments instead of forcing them into activities.
 
