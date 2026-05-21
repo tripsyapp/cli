@@ -381,13 +381,15 @@ func TestTripSubresourceCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 
 func TestCategoryCommandsUseV1Endpoints(t *testing.T) {
 	for _, tt := range []struct {
-		name   string
-		args   []string
-		method string
-		path   string
-		body   map[string]any
+		name         string
+		args         []string
+		method       string
+		path         string
+		queryDeleted string
+		body         map[string]any
 	}{
 		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v1/categories"},
+		{name: "list deleted", args: []string{"list", "--deleted"}, method: http.MethodGet, path: "/v1/categories", queryDeleted: "true"},
 		{name: "show", args: []string{"show", "12"}, method: http.MethodGet, path: "/v1/categories/12"},
 		{name: "create", args: []string{"create", "--name", "Golf Clubs", "--slug", "golf-clubs", "--icon-name", "golf", "--color", "AABBCC"}, method: http.MethodPost, path: "/v1/categories", body: map[string]any{"name": "Golf Clubs", "slug": "golf-clubs", "icon_name": "golf", "color": "AABBCC"}},
 		{name: "update", args: []string{"update", "12", "--color", "112233"}, method: http.MethodPatch, path: "/v1/categories/12", body: map[string]any{"color": "112233"}},
@@ -401,6 +403,9 @@ func TestCategoryCommandsUseV1Endpoints(t *testing.T) {
 				}
 				if r.URL.Path != tt.path {
 					t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
+				}
+				if got := r.URL.Query().Get("deleted"); got != tt.queryDeleted {
+					t.Errorf("deleted query = %q, want %q", got, tt.queryDeleted)
 				}
 				if tt.body != nil {
 					var payload map[string]any

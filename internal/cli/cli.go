@@ -1322,7 +1322,7 @@ func (a *app) categories(ctx context.Context, args []string) error {
 
 	switch args[0] {
 	case "list", "ls":
-		fs, err := parseFlags(args[1:])
+		fs, err := parseFlags(args[1:], "deleted")
 		if err != nil {
 			return err
 		}
