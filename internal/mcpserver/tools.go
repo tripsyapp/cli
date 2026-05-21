@@ -31,6 +31,23 @@ type dataInput struct {
 	Data map[string]any `json:"data" jsonschema:"Object of Tripsy API fields to send."`
 }
 
+type customCategoryCreateInput struct {
+	Data     map[string]any `json:"data,omitempty" jsonschema:"Optional raw custom category fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name     string         `json:"name,omitempty" jsonschema:"Custom category display name, such as Golf Clubs."`
+	Slug     string         `json:"slug,omitempty" jsonschema:"Custom activity category slug. When omitted, the API generates one. If the authenticated user already owns this slug, the API returns an empty 200 OK and does not create a duplicate."`
+	IconName string         `json:"icon_name,omitempty" jsonschema:"Icon name metadata for this category, such as golf."`
+	Color    string         `json:"color,omitempty" jsonschema:"Hex RGB color without a leading #, such as AABBCC."`
+}
+
+type customCategoryUpdateInput struct {
+	ID       string         `json:"id" jsonschema:"Tripsy custom category id."`
+	Data     map[string]any `json:"data,omitempty" jsonschema:"Optional raw writable custom category fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name     string         `json:"name,omitempty" jsonschema:"Custom category display name, such as Golf Clubs."`
+	Slug     string         `json:"slug,omitempty" jsonschema:"Custom activity category slug."`
+	IconName string         `json:"icon_name,omitempty" jsonschema:"Icon name metadata for this category, such as golf."`
+	Color    string         `json:"color,omitempty" jsonschema:"Hex RGB color without a leading #, such as AABBCC."`
+}
+
 type tripCreateInput struct {
 	Data          map[string]any `json:"data,omitempty" jsonschema:"Optional raw Tripsy API fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name          string         `json:"name,omitempty" jsonschema:"Trip name, such as Italy or Lisbon Birthday Weekend."`
@@ -336,6 +353,43 @@ func (s *service) meUpdate(ctx context.Context, req *mcp.CallToolRequest, in dat
 	return toolOutput(s.do(ctx, req, "PATCH", "/v1/me", nil, in.Data, "Current user updated"))
 }
 
+func (s *service) categoriesList(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
+	return toolOutput(s.doAllPages(ctx, req, "GET", "/v1/categories", listQuery(in), nil, "Categories"))
+}
+
+func (s *service) categoryShow(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return nil, nil, fmt.Errorf("id is required")
+	}
+	return toolOutput(s.do(ctx, req, "GET", "/v1/categories/"+apiPathSegment(in.ID), nil, nil, "Category "+in.ID))
+}
+
+func (s *service) categoryCreate(ctx context.Context, req *mcp.CallToolRequest, in customCategoryCreateInput) (*mcp.CallToolResult, any, error) {
+	payload := customCategoryCreatePayload(in)
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("data is required")
+	}
+	return toolOutput(s.do(ctx, req, "POST", "/v1/categories", nil, payload, "Category created"))
+}
+
+func (s *service) categoryUpdate(ctx context.Context, req *mcp.CallToolRequest, in customCategoryUpdateInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return nil, nil, fmt.Errorf("id is required")
+	}
+	payload := customCategoryUpdatePayload(in)
+	if len(payload) == 0 {
+		return nil, nil, fmt.Errorf("data is required")
+	}
+	return toolOutput(s.do(ctx, req, "PATCH", "/v1/categories/"+apiPathSegment(in.ID), nil, payload, "Category updated"))
+}
+
+func (s *service) categoryDelete(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return nil, nil, fmt.Errorf("id is required")
+	}
+	return toolOutput(s.do(ctx, req, "DELETE", "/v1/categories/"+apiPathSegment(in.ID), nil, nil, "Category deleted"))
+}
+
 func (s *service) tripsList(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
 	return s.filteredTripsList(ctx, req, in, true, "Trips. "+tripTravellingAndDateHint)
 }
@@ -521,6 +575,24 @@ func transportationCreatePayload(in transportationCreateInput) map[string]any {
 	setString(payload, "vehicle_description", in.VehicleDescription)
 	setFloat(payload, "price", in.Price)
 	setString(payload, "currency", in.Currency)
+	return payload
+}
+
+func customCategoryCreatePayload(in customCategoryCreateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "slug", in.Slug)
+	setString(payload, "icon_name", in.IconName)
+	setString(payload, "color", in.Color)
+	return payload
+}
+
+func customCategoryUpdatePayload(in customCategoryUpdateInput) map[string]any {
+	payload := cloneData(in.Data)
+	setString(payload, "name", in.Name)
+	setString(payload, "slug", in.Slug)
+	setString(payload, "icon_name", in.IconName)
+	setString(payload, "color", in.Color)
 	return payload
 }
 

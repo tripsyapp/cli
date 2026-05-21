@@ -99,6 +99,7 @@ Run `tripsy commands` for the current command catalog, or `tripsy commands --jso
 | `tripsy activities` | Manage scheduled or unscheduled trip activities. | `list`, `show`, `create`, `update`, `delete` |
 | `tripsy transportations` | Manage flights, trains, cars, and other transport. | `list`, `show`, `create`, `update`, `delete` |
 | `tripsy expenses` | Manage trip expenses. | `list`, `show`, `create`, `update`, `delete` |
+| `tripsy categories` | Manage custom activity categories. | `list`, `show`, `create`, `update`, `replace`, `delete` |
 | `tripsy collaborators` | List collaborators and pending invitations for a trip. | `list` |
 | `tripsy emails` | Manage alternative email addresses. | `list`, `add`, `delete` |
 | `tripsy inbox` | Review automation emails that still need manual handling. | `list`, `show`, `update`, `delete` |
@@ -121,6 +122,7 @@ tripsy activities create --trip 42 --name "Colosseum Tour" --activity-type tour 
 tripsy hostings create --trip 42 --name "Hotel Eden" --starts-at 2026-06-01T14:00:00Z --ends-at 2026-06-05T11:00:00Z --timezone Europe/Rome
 tripsy transportations create --trip 42 --name "Flight to Rome" --transportation-type airplane --departure-description JFK --arrival-description FCO
 tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR --date 2026-06-03T20:00:00Z
+tripsy categories create --name "Golf Clubs" --slug golf-clubs --icon-name golf --color AABBCC
 tripsy documents upload boarding-pass.pdf --trip 42 --parent transportation:303
 tripsy request GET /v1/me --json
 tripsy doctor --verbose
@@ -240,6 +242,8 @@ Read-only tools:
 - `tripsy_transportations_show`: fetch one transportation by id.
 - `tripsy_expenses_list`: list expenses for a trip.
 - `tripsy_expenses_show`: fetch one expense by id.
+- `tripsy_categories_list`: list visible custom activity categories.
+- `tripsy_categories_show`: fetch one visible custom activity category by id.
 - `tripsy_collaborators_list`: list collaborators and pending invitations for a trip.
 
 Write tools:
@@ -255,6 +259,8 @@ Write tools:
 - `tripsy_transportations_update`: update a transportation.
 - `tripsy_expenses_create`: create an expense.
 - `tripsy_expenses_update`: update an expense.
+- `tripsy_categories_create`: create a custom activity category.
+- `tripsy_categories_update`: update a custom activity category.
 
 Destructive tools:
 
@@ -263,6 +269,7 @@ Destructive tools:
 - `tripsy_hostings_delete`: delete a hosting.
 - `tripsy_transportations_delete`: delete a transportation.
 - `tripsy_expenses_delete`: delete an expense.
+- `tripsy_categories_delete`: delete a custom activity category.
 - `tripsy_raw_request`: make a raw request to supported Tripsy public API endpoints. This tool is disabled when the MCP server runs with `--disable-raw-request`.
 
 Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present.

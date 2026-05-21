@@ -146,6 +146,8 @@ func (a *app) execute(ctx context.Context) error {
 		return a.resource(ctx, transportationResource, a.args[1:])
 	case "expenses", "expense":
 		return a.resource(ctx, expenseResource, a.args[1:])
+	case "categories", "category":
+		return a.categories(ctx, a.args[1:])
 	case "collaborators":
 		return a.collaborators(ctx, a.args[1:])
 	case "emails", "email":
@@ -440,6 +442,15 @@ func buildPayload(fs *flagSet, allowed []string) (map[string]any, error) {
 	}
 
 	return payload, nil
+}
+
+func coercePayloadStrings(payload map[string]any, fields ...string) {
+	for _, field := range fields {
+		value, ok := payload[field]
+		if ok && value != nil {
+			payload[field] = fmt.Sprint(value)
+		}
+	}
 }
 
 func parseValue(value string) any {
@@ -1301,6 +1312,122 @@ var expenseResource = resourceSpec{
 	Columns:      []string{"id", "title", "date", "price", "currency"},
 }
 
+func (a *app) categories(ctx context.Context, args []string) error {
+	if err := requireToken(a.client); err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		args = []string{"list"}
+	}
+
+	switch args[0] {
+	case "list", "ls":
+		fs, err := parseFlags(args[1:])
+		if err != nil {
+			return err
+		}
+		resp, err := a.client.RequestAllPages(ctx, "GET", "/v1/categories", commonListQuery(fs), nil)
+		if err != nil {
+			return err
+		}
+		return a.render(output.Result{
+			Data:    resp.Data,
+			Summary: fmt.Sprintf("%d categories", len(results(resp.Data))),
+			Breadcrumbs: []output.Breadcrumb{
+				{Action: "show", Cmd: "tripsy categories show <id>"},
+				{Action: "create", Cmd: "tripsy categories create --name <name> --slug <slug>"},
+			},
+			Human: formatObjects("Categories", resp.Data, "id", "slug", "name", "icon_name", "color"),
+		})
+	case "show", "get":
+		fs, err := parseFlags(args[1:])
+		if err != nil {
+			return err
+		}
+		id, err := positionalID(fs, "categories show requires an id")
+		if err != nil {
+			return err
+		}
+		resp, err := a.client.Request(ctx, "GET", "/v1/categories/"+apiPathSegment(id), nil, nil)
+		if err != nil {
+			return err
+		}
+		return a.render(output.Result{
+			Data:    resp.Data,
+			Summary: "category " + id,
+			Human:   formatFullObject("Category", resp.Data, customCategoryDetailFields...),
+		})
+	case "create", "new":
+		fs, err := parseFlags(args[1:])
+		if err != nil {
+			return err
+		}
+		payload, err := buildPayload(fs, customCategoryFields)
+		if err != nil {
+			return err
+		}
+		coercePayloadStrings(payload, customCategoryFields...)
+		if len(payload) == 0 {
+			return usageError("categories create requires --data or field flags")
+		}
+		resp, err := a.client.Request(ctx, "POST", "/v1/categories", nil, payload)
+		if err != nil {
+			return err
+		}
+		id := valueString(resp.Data, "id")
+		return a.render(output.Result{
+			Data:    resp.Data,
+			Summary: "Category created",
+			Breadcrumbs: []output.Breadcrumb{
+				{Action: "show", Cmd: "tripsy categories show " + firstNonEmpty(id, "<id>")},
+			},
+			Human: formatObject("Created category", resp.Data, "id", "slug", "name", "icon_name", "color"),
+		})
+	case "update", "patch", "replace", "put":
+		fs, err := parseFlags(args[1:])
+		if err != nil {
+			return err
+		}
+		id, err := positionalID(fs, "categories update requires an id")
+		if err != nil {
+			return err
+		}
+		payload, err := buildPayload(fs, customCategoryFields)
+		if err != nil {
+			return err
+		}
+		coercePayloadStrings(payload, customCategoryFields...)
+		if len(payload) == 0 {
+			return usageError("categories update requires --set key=value or field flags")
+		}
+		method := "PATCH"
+		if args[0] == "replace" || args[0] == "put" {
+			method = "PUT"
+		}
+		resp, err := a.client.Request(ctx, method, "/v1/categories/"+apiPathSegment(id), nil, payload)
+		if err != nil {
+			return err
+		}
+		return a.render(output.Result{Data: resp.Data, Summary: "Category updated", Human: formatObject("Updated category", resp.Data, "id", "slug", "name", "icon_name", "color")})
+	case "delete", "rm":
+		fs, err := parseFlags(args[1:])
+		if err != nil {
+			return err
+		}
+		id, err := positionalID(fs, "categories delete requires an id")
+		if err != nil {
+			return err
+		}
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/categories/"+apiPathSegment(id), nil, nil)
+		if err != nil {
+			return err
+		}
+		return a.render(output.Result{Data: requestData(resp), Summary: "Category deleted", Human: "Category deleted.\n"})
+	default:
+		return usageError("unknown categories subcommand %q", args[0])
+	}
+}
+
 func (a *app) resource(ctx context.Context, spec resourceSpec, args []string) error {
 	if err := requireToken(a.client); err != nil {
 		return err
@@ -2155,6 +2282,18 @@ var expenseDetailFields = append([]string{"id"}, append(
 	"trip",
 )...)
 
+var customCategoryFields = []string{
+	"name",
+	"slug",
+	"icon_name",
+	"color",
+}
+
+var customCategoryDetailFields = append([]string{
+	"id",
+	"owner",
+}, customCategoryFields...)
+
 var documentFields = []string{
 	"url",
 	"thumb_url",
@@ -2213,6 +2352,18 @@ func commandCatalog() []commandSpec {
 		resourceCommandSpec("activities", "activity", "Scheduled or unscheduled trip activities", "tripsy activities create --trip 42 --name 'Colosseum Tour' --activity-type tour"),
 		resourceCommandSpec("transportations", "transportation", "Flights, trains, cars, and other transport", "tripsy transportations create --trip 42 --name 'Flight to Rome' --transportation-type airplane"),
 		resourceCommandSpec("expenses", "expense", "Trip expenses", "tripsy expenses create --trip 42 --title Dinner --price 78.5 --currency EUR"),
+		{
+			Name:        "categories",
+			Usage:       "tripsy categories <list|show|create|update|replace|delete>",
+			Summary:     "Manage custom activity categories visible to the authenticated user.",
+			Subcommands: []string{"list", "show", "create", "update", "replace", "delete"},
+			Examples: []string{
+				"tripsy categories list",
+				"tripsy categories create --name 'Golf Clubs' --slug golf-clubs --icon-name golf --color AABBCC",
+				"tripsy categories update 12 --color 112233",
+			},
+			Gotchas: []string{"Custom category slugs can be used as activity_type values on activity endpoints."},
+		},
 		{
 			Name:        "collaborators",
 			Usage:       "tripsy collaborators --trip <trip-id>",
@@ -2318,6 +2469,7 @@ Commands:
   activities        Manage trip activities
   transportations   Manage flights, trains, cars, and other transport
   expenses          Manage trip expenses
+  categories        Manage custom activity categories
   collaborators     List trip collaborators
   emails            Manage alternative email addresses
   inbox             Review unprocessed automation emails

@@ -40,6 +40,7 @@ func TestCommandsJSON(t *testing.T) {
 		"cover_image_url",
 		"https://images.unsplash.com/photo-",
 		"activity-type tour",
+		"categories create",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("command catalog missing %q in %s", want, text)
@@ -373,6 +374,56 @@ func TestTripSubresourceCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 						t.Fatalf("%s(%v) failed: %v", spec.Plural, tt.args, err)
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestCategoryCommandsUseV1Endpoints(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		args   []string
+		method string
+		path   string
+		body   map[string]any
+	}{
+		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v1/categories"},
+		{name: "show", args: []string{"show", "12"}, method: http.MethodGet, path: "/v1/categories/12"},
+		{name: "create", args: []string{"create", "--name", "Golf Clubs", "--slug", "golf-clubs", "--icon-name", "golf", "--color", "AABBCC"}, method: http.MethodPost, path: "/v1/categories", body: map[string]any{"name": "Golf Clubs", "slug": "golf-clubs", "icon_name": "golf", "color": "AABBCC"}},
+		{name: "update", args: []string{"update", "12", "--color", "112233"}, method: http.MethodPatch, path: "/v1/categories/12", body: map[string]any{"color": "112233"}},
+		{name: "replace", args: []string{"replace", "12", "--name", "Golf Clubs"}, method: http.MethodPut, path: "/v1/categories/12", body: map[string]any{"name": "Golf Clubs"}},
+		{name: "delete", args: []string{"delete", "12"}, method: http.MethodDelete, path: "/v1/categories/12"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("method = %s, want %s", r.Method, tt.method)
+				}
+				if r.URL.Path != tt.path {
+					t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
+				}
+				if tt.body != nil {
+					var payload map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode body: %v", err)
+					}
+					for key, want := range tt.body {
+						if payload[key] != want {
+							t.Errorf("body[%s] = %v, want %v", key, payload[key], want)
+						}
+					}
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodDelete {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				_, _ = w.Write([]byte(`{"id":12,"owner":1,"slug":"golf-clubs","icon_name":"golf","name":"Golf Clubs","color":"AABBCC","results":[{"id":12,"slug":"golf-clubs"}]}`))
+			})
+			defer cleanup()
+
+			if err := a.categories(context.Background(), tt.args); err != nil {
+				t.Fatalf("categories(%v) failed: %v", tt.args, err)
 			}
 		})
 	}
