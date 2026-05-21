@@ -24,23 +24,27 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Choose a destination-specific Unsplash image for leisure trips and set it as `cover_image_url`.
 - Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`.
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
+- Before saving a trip `cover_image_url`, validate that it is a real direct Unsplash CDN URL. If the client has external URL access, also confirm the image URL is reachable and not returning a `404`.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not bundle multiple places into one activity.
-- Use start and end times when possible. Send timed values as UTC ISO-8601 strings and set the local `timezone`.
+- Use start and end times when possible. Send all timed values as UTC ISO-8601 strings. Always set the local IANA `timezone` for the activity, lodging, departure point, or arrival point so Tripsy displays the time in the correct timezone for that location.
 - Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
+- Activities can use either a documented built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` that is not in the built-in list, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and resolve the slug there before displaying the category name, icon, or color.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
 - For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
+- Delete operations can be executed when requested. Tripsy deletes are recoverable, so they can be undone if necessary.
 
 ## Avoid
 
 - Do not use `unsplash.com/photos/...` as `cover_image_url`.
 - Do not invent or transform Unsplash photo IDs into `images.unsplash.com` URLs; copy the real numeric photo asset URL.
+- Do not save a malformed `cover_image_url`; check for `404` only when the client has external URL access.
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
 - Do not omit coordinates when a location is known.
-- Do not use unsupported `activity_type` values such as `sightseeing`.
+- Do not treat an unknown `activity_type` as invalid until you have checked whether it is a visible custom category. Do not invent ad hoc values such as `sightseeing`.
 
 ## Golden Path Example
 
@@ -88,6 +92,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 ```
 
 ## Activity Categories
+
+Activities normally use one of these built-in category slugs. Activities may also use custom category slugs returned by `tripsy_categories_list` or `tripsy categories list`. Custom category slugs are only for Activity objects through `activity_type`. MCP clients that render activities must handle both cases: display the built-in category metadata for known built-in slugs, and resolve custom slugs from visible custom categories so the correct custom category name is shown.
 
 ```text
 concert, fit, general, kids, museum, note, relax, restaurant, shopping,

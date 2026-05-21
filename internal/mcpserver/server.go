@@ -103,7 +103,7 @@ func NewWithClientOptions(client *api.Client, store *config.Store, opts Options)
 
 func (s *service) register(server *mcp.Server) {
 	addTool(server, toolName("tripsy", "status"), "Tripsy Status", "Inspect Tripsy MCP configuration and authentication state without revealing the stored token.", readOnly(), s.status)
-	addTool(server, toolName("tripsy", "itinerary", "guidance"), "Tripsy Itinerary Guidance", "Return concise agent guidance for creating high-quality Tripsy trips, including direct Unsplash cover images, item granularity, coordinates, lodging, transportation, and transfer rules.", readOnly(), s.itineraryGuidance)
+	addTool(server, toolName("tripsy", "itinerary", "guidance"), "Tripsy Itinerary Guidance", "Return concise agent guidance for creating high-quality Tripsy trips, including UTC timestamp and local timezone rules, reachable direct Unsplash cover images, item granularity, coordinates, lodging, transportation, transfer rules, and recoverable delete behavior.", readOnly(), s.itineraryGuidance)
 	if !s.disableRawRequest {
 		addTool(server, toolName("tripsy", "raw_request"), "Raw Tripsy API Request", "Make a raw request to supported Tripsy public API endpoints that do not yet have a dedicated MCP tool. Prefer typed tools when available.", destructive(), s.rawRequest)
 	}
@@ -120,9 +120,9 @@ func (s *service) register(server *mcp.Server) {
 	addTool(server, toolName("tripsy", "trips", "list"), "List Trips", "List Tripsy trips where the authenticated user is travelling, including owned trips and shared trips with current-user is_travelling permission. has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if present. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsList)
 	addTool(server, toolName("tripsy", "trips", "following", "list"), "List Following Trips", "List Tripsy trips the authenticated user follows but is not travelling on, based on current-user is_travelling permission. has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if present. Supports fields, excluded fields, deleted records, and updated-since filtering.", readOnly(), s.tripsFollowingList)
 	addTool(server, toolName("tripsy", "trips", "show"), "Show Trip", "Fetch one Tripsy trip by id. A returned trip may be owned by another user and shared through collaboration; inspect owner/collaborators when ownership matters. has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if present.", readOnly(), s.tripShow)
-	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For planned itineraries, include name, timezone, starts_at, ends_at, and cover_image_url. For leisure trips, cover_image_url should be a destination-specific real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. Do not use unsplash.com/photos/... pages, and do not turn short photo IDs such as nWdsya5_Yms into images.unsplash.com/photo-nWdsya5_Yms URLs. Use date strings for trip starts_at/ends_at such as 2026-06-01.", additive(), s.tripCreate)
-	addTool(server, toolName("tripsy", "trips", "update"), "Update Trip", "Update a Tripsy trip by id.", idempotentWrite(), s.tripUpdate)
-	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id.", destructive(), s.tripDelete)
+	addTool(server, toolName("tripsy", "trips", "create"), "Create Trip", "Create a Tripsy trip. For planned itineraries, include name, timezone, starts_at, ends_at, and cover_image_url. For leisure trips, cover_image_url should be a destination-specific real direct Unsplash CDN URL copied from an image result, in the form https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0. The MCP server validates direct Unsplash URL shape; if the client also has external URL access, check that the image URL is reachable and not a 404 before saving it. Do not use unsplash.com/photos/... pages, and do not turn short photo IDs such as nWdsya5_Yms into images.unsplash.com/photo-nWdsya5_Yms URLs. Use date strings for trip starts_at/ends_at such as 2026-06-01.", additive(), s.tripCreate)
+	addTool(server, toolName("tripsy", "trips", "update"), "Update Trip", "Update a Tripsy trip by id. If updating cover_image_url, the MCP server validates direct Unsplash URL shape; if the client also has external URL access, check that the image URL is reachable and not a 404 before saving it.", idempotentWrite(), s.tripUpdate)
+	addTool(server, toolName("tripsy", "trips", "delete"), "Delete Trip", "Soft-delete a Tripsy trip by id. Delete operations may be executed when requested and can be undone if necessary.", destructive(), s.tripDelete)
 
 	s.registerResource(server, resourceSpec{
 		Prefix:         "activities",
@@ -136,11 +136,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:    "activityType",
 		FilterHint:     activityCategoryHint,
 		Description:    "Scheduled or unscheduled trip activities. Use one activity per actual stop, reservation, meal, tour, or experience.",
-		CreateAdvice:   "Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not bundle multiple stops into one activity.",
+		CreateAdvice:   "Set activity_type to the most specific built-in slug or visible custom category slug, include address plus latitude/longitude for map-ready location items, use UTC starts_at/ends_at values with the local timezone for the activity location, and do not bundle multiple stops into one activity. Custom category slugs are only valid on Activity objects through activity_type. MCP clients displaying activities must resolve non-built-in activity_type values through tripsy_categories_list so the correct custom activity category name, icon, and color are shown.",
 		ExcludeData:    true,
 		SkipCreate:     true,
 	})
-	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Set activity_type to the most specific supported slug, include address plus latitude/longitude for map-ready location items, and do not use unsupported values such as sightseeing. "+activityCategoryHint, additive(), s.activityCreate)
+	addTool(server, toolName("tripsy", "activities", "create"), "Create Activity", "Create a Tripsy activity. Use one activity per actual stop, reservation, meal, tour, event, or experience. Timed values are always UTC ISO-8601 timestamps; set timezone to the activity location's local IANA timezone so Tripsy displays local time correctly. Set activity_type to the most specific built-in slug or visible custom category slug, include address plus latitude/longitude for map-ready location items, and do not invent ad hoc values such as sightseeing. Custom category slugs are only valid on Activity objects through activity_type. MCP clients displaying activities must resolve non-built-in activity_type values through tripsy_categories_list so the correct custom activity category name, icon, and color are shown. "+activityCategoryHint, additive(), s.activityCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:         "hostings",
 		Title:          "Hosting",
@@ -150,11 +150,11 @@ func (s *service) register(server *mcp.Server) {
 		ReadListPath:   "/v2/trip/%s/hostings/",
 		ReadDetailPath: "/v2/trip/%s/hosting/%s/",
 		Description:    "Hotel and lodging plans.",
-		CreateAdvice:   "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, dates, and timezone when known.",
+		CreateAdvice:   "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, UTC starts_at/ends_at values, and the local timezone for the lodging location when known.",
 		ExcludeData:    true,
 		SkipCreate:     true,
 	})
-	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
+	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Timed values are always UTC ISO-8601 timestamps; set timezone to the lodging location's local IANA timezone so Tripsy displays local time correctly. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:         "transportations",
 		Title:          "Transportation",
@@ -167,11 +167,11 @@ func (s *service) register(server *mcp.Server) {
 		FilterParam:    "transportationType",
 		FilterHint:     transportationCategoryHint,
 		Description:    "Flights, trains, cars, buses, ferries, walks, and other point-to-point travel.",
-		CreateAdvice:   "Use transportation_type for the segment kind and include departure/arrival coordinates when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
+		CreateAdvice:   "Use transportation_type for the segment kind and include departure/arrival coordinates when known. Use UTC departure_at/arrival_at values with local departure_timezone/arrival_timezone fields for display. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and include both departure and arrival names/descriptions, addresses, latitudes, and longitudes.",
 		ExcludeData:    true,
 		SkipCreate:     true,
 	})
-	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
+	addTool(server, toolName("tripsy", "transportations", "create"), "Create Transportation", "Create a Tripsy transportation for point-to-point movement. Timed values are always UTC ISO-8601 timestamps; set departure_timezone and arrival_timezone to each endpoint's local IANA timezone so Tripsy displays local times correctly. Use transportation_type for the segment kind and include departure/arrival names, addresses, latitudes, and longitudes when known. For flights, use transportation_type airplane, set departure_description and arrival_description to airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one. For transfer activities, use transportation_type roadtrip and fill both departure and arrival locations completely. "+transportationCategoryHint, additive(), s.transportationCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:       "expenses",
 		Title:        "Expense",
