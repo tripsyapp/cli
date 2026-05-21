@@ -34,6 +34,7 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		"tripsy_activities_create",
 		"tripsy_hostings_create",
 		"tripsy_transportations_create",
+		"tripsy_categories_create",
 		"tripsy_collaborators_list",
 		"tripsy_trips_list",
 		"tripsy_trips_following_list",
@@ -91,6 +92,22 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 	if activitiesList.Annotations == nil || !activitiesList.Annotations.ReadOnlyHint {
 		t.Fatal("activities list should be marked read-only")
+	}
+
+	categoriesList := findTool(res.Tools, "tripsy_categories_list")
+	if categoriesList == nil {
+		t.Fatal("tripsy_categories_list was not registered")
+	}
+	if !strings.Contains(categoriesList.Description, "Custom category slugs") || !strings.Contains(categoriesList.Description, "activity_type") {
+		t.Fatalf("categories list description should mention activity_type usage: %q", categoriesList.Description)
+	}
+	categoriesCreate := findTool(res.Tools, "tripsy_categories_create")
+	if categoriesCreate == nil {
+		t.Fatal("tripsy_categories_create was not registered")
+	}
+	categoriesCreateSchema := toolSchemaString(t, categoriesCreate)
+	if !strings.Contains(categoriesCreateSchema, "icon_name") || !strings.Contains(categoriesCreateSchema, "AABBCC") || !strings.Contains(categoriesCreateSchema, "already owns this slug") {
+		t.Fatalf("categories create input schema should expose custom category fields: %s", categoriesCreateSchema)
 	}
 
 	tripsList := findTool(res.Tools, "tripsy_trips_list")
@@ -345,6 +362,64 @@ func TestTripCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
 	data := structured["data"].(map[string]any)
 	if data["name"] != "Copenhagen" {
 		t.Fatalf("data.name = %v, want Copenhagen", data["name"])
+	}
+}
+
+func TestCategoryCreateSendsAuthenticatedTripsyRequest(t *testing.T) {
+	var called atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/categories" {
+			t.Errorf("path = %s, want /v1/categories", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Token test-token" {
+			t.Errorf("Authorization = %q, want Token test-token", got)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		for key, want := range map[string]any{
+			"name":      "Golf Clubs",
+			"slug":      "golf-clubs",
+			"icon_name": "golf",
+			"color":     "AABBCC",
+		} {
+			if body[key] != want {
+				t.Errorf("body[%s] = %v, want %v", key, body[key], want)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":12,"owner":1,"slug":"golf-clubs","icon_name":"golf","name":"Golf Clubs","color":"AABBCC"}`))
+	})
+	session, cleanup := connectTestSession(t, "test-token", handler)
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_categories_create", map[string]any{
+		"name":      "Golf Clubs",
+		"slug":      "golf-clubs",
+		"icon_name": "golf",
+		"color":     "AABBCC",
+	})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+
+	structured := structuredMap(t, res)
+	if got := fmt.Sprint(structured["status_code"]); got != "201" {
+		t.Fatalf("status_code = %s, want 201", got)
+	}
+	if structured["summary"] != "Category created" {
+		t.Fatalf("summary = %v, want Category created", structured["summary"])
 	}
 }
 
