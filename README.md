@@ -228,7 +228,9 @@ The MCP server exposes the tools below. All tools are closed-world: they only in
 
 ### MCP Tool Conventions
 
-- Timed fields are always UTC ISO-8601 timestamps, for example `2026-06-03T09:00:00Z`. Pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`) so Tripsy displays the time in the correct timezone for the activity, lodging, departure point, or arrival point.
+- Timed fields are always UTC ISO-8601 timestamps, for example `2026-06-03T09:00:00Z`. Pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`).
+- When displaying activity or lodging dates/times, MCP clients must convert UTC `starts_at` and `ends_at` values into that item's `timezone` before formatting local date/time.
+- When displaying transportation dates/times, MCP clients must convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone`; do not apply one endpoint's timezone to the other endpoint unless the fields explicitly match.
 - Trip date fields use calendar dates such as `2026-06-01`; itinerary item times use UTC timestamps.
 - Activity `activity_type` values may be built-in category slugs or visible custom category slugs. Custom category slugs are only valid on Activity objects through `activity_type`; they are not lodging, transportation, expense, or trip categories. When an MCP client sees an activity type that is not one of the documented built-in activity categories, it must fetch visible custom categories through `tripsy_categories_list` and resolve the slug there before displaying the activity category name, icon, or color.
 - For trip covers, save only a real direct Unsplash CDN `cover_image_url` copied from an image result. The MCP server validates direct Unsplash URL shape. If the client also has external URL access, confirm the image URL is reachable and not returning a `404` before creating or updating the trip.
