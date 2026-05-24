@@ -149,12 +149,12 @@ func (s *service) register(server *mcp.Server) {
 		DetailPath:     "/v1/trip/%s/hosting/%s",
 		ReadListPath:   "/v2/trip/%s/hostings/",
 		ReadDetailPath: "/v2/trip/%s/hosting/%s/",
-		Description:    "Hotel and lodging plans.",
-		CreateAdvice:   "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, UTC starts_at/ends_at values, and the local timezone for the lodging location when known.",
+		Description:    "Hotel and lodging plans. MCP clients displaying lodging dates/times must convert UTC starts_at/ends_at values into the lodging timezone.",
+		CreateAdvice:   "Use hostings for hotels and lodging rather than activities. Include name, address, latitude, longitude, UTC starts_at/ends_at values, and the local timezone for the lodging location when known. MCP clients displaying lodging data must convert UTC starts_at/ends_at values into the lodging timezone before formatting local date/time.",
 		ExcludeData:    true,
 		SkipCreate:     true,
 	})
-	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Timed values are always UTC ISO-8601 timestamps; set timezone to the lodging location's local IANA timezone so Tripsy displays local time correctly. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
+	addTool(server, toolName("tripsy", "hostings", "create"), "Create Hosting", "Create a Tripsy hosting. Use hostings for hotels and lodging rather than activities. Timed values are always UTC ISO-8601 timestamps; set timezone to the lodging location's local IANA timezone. MCP clients displaying hostings must convert UTC starts_at/ends_at values into the lodging timezone before formatting local date/time. Include name, address, latitude, longitude, starts_at, ends_at, and timezone when known.", additive(), s.hostingCreate)
 	s.registerResource(server, resourceSpec{
 		Prefix:         "transportations",
 		Title:          "Transportation",

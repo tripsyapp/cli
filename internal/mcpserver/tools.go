@@ -83,9 +83,9 @@ type hostingCreateInput struct {
 	TripID      string         `json:"trip_id" jsonschema:"Tripsy trip id."`
 	Data        map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name        string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
-	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; set timezone for local display."`
-	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; set timezone for local display."`
-	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
+	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the lodging date/time."`
 	Address     string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
 	Latitude    *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
 	Longitude   *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
@@ -261,7 +261,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through activity_type.",
 		"When displaying activities, convert UTC starts_at/ends_at into the activity timezone before formatting the local date/time, and resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
-		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
+		"Use hostings for hotels and lodging, with address, latitude, and longitude when known. When displaying hostings, convert UTC starts_at/ends_at into the lodging timezone before formatting the local date/time.",
 		"Use transportations for point-to-point movement.",
 		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
 		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
