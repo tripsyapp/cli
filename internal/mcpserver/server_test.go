@@ -93,6 +93,13 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	if activitiesList.Annotations == nil || !activitiesList.Annotations.ReadOnlyHint {
 		t.Fatal("activities list should be marked read-only")
 	}
+	if !strings.Contains(activitiesList.Description, "convert UTC starts_at/ends_at values into the activity timezone") {
+		t.Fatalf("activities list description should mention display timezone conversion: %q", activitiesList.Description)
+	}
+	hostingsList := findTool(res.Tools, "tripsy_hostings_list")
+	if !strings.Contains(hostingsList.Description, "convert UTC starts_at/ends_at values into the lodging timezone") {
+		t.Fatalf("hostings list description should mention lodging timezone conversion: %q", hostingsList.Description)
+	}
 
 	categoriesList := findTool(res.Tools, "tripsy_categories_list")
 	if categoriesList == nil {
@@ -137,26 +144,34 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
-	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
+	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "convert UTC starts_at/ends_at values into the activity timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
 		t.Fatalf("activities create description should mention time, category, and coordinates guidance: %q", activitiesCreate.Description)
 	}
 	activitiesCreateSchema := toolSchemaString(t, activitiesCreate)
-	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "local display") || !strings.Contains(activitiesCreateSchema, "latitude") {
+	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "convert this value to the activity timezone") || !strings.Contains(activitiesCreateSchema, "before displaying the local date/time") || !strings.Contains(activitiesCreateSchema, "latitude") {
 		t.Fatalf("activities create input schema should expose typed activity fields: %s", activitiesCreateSchema)
 	}
 
 	hostingsCreate := findTool(res.Tools, "tripsy_hostings_create")
-	if !strings.Contains(hostingsCreate.Description, "lodging rather than activities") || !strings.Contains(hostingsCreate.Description, "Timed values are always UTC") || !strings.Contains(hostingsCreate.Description, "local IANA timezone") || !strings.Contains(hostingsCreate.Description, "address") || !strings.Contains(hostingsCreate.Description, "latitude") {
+	if !strings.Contains(hostingsCreate.Description, "lodging rather than activities") || !strings.Contains(hostingsCreate.Description, "Timed values are always UTC") || !strings.Contains(hostingsCreate.Description, "local IANA timezone") || !strings.Contains(hostingsCreate.Description, "convert UTC starts_at/ends_at values into the lodging timezone") || !strings.Contains(hostingsCreate.Description, "address") || !strings.Contains(hostingsCreate.Description, "latitude") {
 		t.Fatalf("hostings create description should mention lodging, time, and coordinates guidance: %q", hostingsCreate.Description)
+	}
+	hostingsCreateSchema := toolSchemaString(t, hostingsCreate)
+	if !strings.Contains(hostingsCreateSchema, "convert this value to the lodging timezone") || !strings.Contains(hostingsCreateSchema, "before displaying the local date/time") || !strings.Contains(hostingsCreateSchema, "UTC starts_at/ends_at values") {
+		t.Fatalf("hostings create input schema should expose lodging timezone conversion guidance: %s", hostingsCreateSchema)
 	}
 
 	transportationsCreate := findTool(res.Tools, "tripsy_transportations_create")
-	if !strings.Contains(transportationsCreate.Description, "Timed values are always UTC") || !strings.Contains(transportationsCreate.Description, "departure_timezone and arrival_timezone") || !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") || !strings.Contains(transportationsCreate.Description, "airport IATA codes") || !strings.Contains(transportationsCreate.Description, "departure/arrival latitudes and longitudes") || !strings.Contains(transportationsCreate.Description, "omit name") {
+	if !strings.Contains(transportationsCreate.Description, "Timed values are always UTC") || !strings.Contains(transportationsCreate.Description, "departure_timezone and arrival_timezone") || !strings.Contains(transportationsCreate.Description, "convert departure_at with departure_timezone and arrival_at with arrival_timezone") || !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") || !strings.Contains(transportationsCreate.Description, "airport IATA codes") || !strings.Contains(transportationsCreate.Description, "departure/arrival latitudes and longitudes") || !strings.Contains(transportationsCreate.Description, "omit name") {
 		t.Fatalf("transportations create description should mention time, flight IATA/coordinates and transfer roadtrip endpoint guidance: %q", transportationsCreate.Description)
 	}
 	transportationsCreateSchema := toolSchemaString(t, transportationsCreate)
-	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "Timed values are always UTC") || !strings.Contains(transportationsCreateSchema, "local departure time") || !strings.Contains(transportationsCreateSchema, "Required for flight airports") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
+	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "Timed values are always UTC") || !strings.Contains(transportationsCreateSchema, "convert this value to departure_timezone") || !strings.Contains(transportationsCreateSchema, "convert this value to arrival_timezone") || !strings.Contains(transportationsCreateSchema, "Required for flight airports") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
 		t.Fatalf("transportations create input schema should expose typed transfer fields: %s", transportationsCreateSchema)
+	}
+	transportationsList := findTool(res.Tools, "tripsy_transportations_list")
+	if !strings.Contains(transportationsList.Description, "convert UTC departure_at with departure_timezone and UTC arrival_at with arrival_timezone") {
+		t.Fatalf("transportations list description should mention endpoint timezone conversion: %q", transportationsList.Description)
 	}
 }
 
@@ -256,7 +271,10 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 		"external URL access",
 		"one Tripsy item per actual stop",
 		"UTC ISO-8601 timestamps",
-		"correct timezone",
+		"correct local date/time",
+		"convert UTC starts_at/ends_at into the activity timezone",
+		"convert UTC starts_at/ends_at into the lodging timezone",
+		"convert departure_at with departure_timezone and arrival_at with arrival_timezone",
 		"airport IATA codes",
 		"departure/arrival latitudes and longitudes",
 		"omit name unless the user provided one",

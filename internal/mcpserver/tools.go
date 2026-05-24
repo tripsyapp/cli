@@ -66,9 +66,9 @@ type activityCreateInput struct {
 	Data         map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name         string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
 	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Activity category slug. Use a built-in Activity category slug or a visible custom category slug returned by tripsy_categories_list. Custom category slugs are only valid on Activity objects through activity_type. Use the most specific available slug; do not invent ad hoc values such as sightseeing."`
-	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; set timezone for local display."`
-	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; set timezone for local display."`
-	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
+	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
+	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
+	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the activity date/time."`
 	Address      string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
 	Latitude     *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
 	Longitude    *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
@@ -83,9 +83,9 @@ type hostingCreateInput struct {
 	TripID      string         `json:"trip_id" jsonschema:"Tripsy trip id."`
 	Data        map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name        string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
-	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; set timezone for local display."`
-	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; set timezone for local display."`
-	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. Tripsy uses this with the UTC starts_at/ends_at values to display local time correctly."`
+	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the lodging date/time."`
 	Address     string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
 	Latitude    *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
 	Longitude   *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
@@ -103,14 +103,14 @@ type transportationCreateInput struct {
 	Name                 string         `json:"name,omitempty" jsonschema:"Transportation segment name. For flights, omit name unless the user provided one."`
 	TransportationType   string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use roadtrip."`
 	DepartureDescription string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For flights, use the departure airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; set departure_timezone for local display."`
-	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. Tripsy uses this with the UTC departure_at value to display local departure time correctly."`
+	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; MCP clients must convert this value to departure_timezone before displaying the local departure date/time."`
+	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. MCP clients must use this timezone to convert UTC departure_at before displaying the local departure date/time."`
 	DepartureAddress     string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
 	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for flight airports and transfer activities when known."`
 	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for flight airports and transfer activities when known."`
 	ArrivalDescription   string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For flights, use the arrival airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known. Timed values are always UTC; set arrival_timezone for local display."`
-	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival location IANA timezone. Tripsy uses this with the UTC arrival_at value to display local arrival time correctly."`
+	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known. Timed values are always UTC; MCP clients must convert this value to arrival_timezone before displaying the local arrival date/time."`
+	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival location IANA timezone. MCP clients must use this timezone to convert UTC arrival_at before displaying the local arrival date/time."`
 	ArrivalAddress       string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
 	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for flight airports and transfer activities when known."`
 	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for flight airports and transfer activities when known."`
@@ -260,12 +260,13 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"The MCP server validates cover_image_url shape. If the client also has external URL access, check that the image URL is reachable and does not return a 404 before saving it.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through activity_type.",
-		"When displaying activities, resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
-		"Use hostings for hotels and lodging, with address, latitude, and longitude when known.",
+		"When displaying activities, convert UTC starts_at/ends_at into the activity timezone before formatting the local date/time, and resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
+		"Use hostings for hotels and lodging, with address, latitude, and longitude when known. When displaying hostings, convert UTC starts_at/ends_at into the lodging timezone before formatting the local date/time.",
 		"Use transportations for point-to-point movement.",
 		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
 		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
-		"Use exact UTC ISO-8601 timestamps for every timed value and set the relevant local timezone so Tripsy displays the time in the correct timezone for the item's location.",
+		"Use exact UTC ISO-8601 timestamps for every timed value and set the relevant local timezone so display clients can convert UTC values into the correct local date/time for the item's location.",
+		"When displaying transportations, convert departure_at with departure_timezone and arrival_at with arrival_timezone; never apply a single timezone to both endpoints unless those two fields explicitly match.",
 		"Add address, latitude, and longitude for map-relevant activities, hostings, and transportation endpoints.",
 		"Delete tools may be executed when requested; Tripsy delete operations are recoverable if they need to be undone.",
 	}

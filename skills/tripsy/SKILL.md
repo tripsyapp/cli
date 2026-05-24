@@ -18,7 +18,9 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Follow `breadcrumbs` when navigating related resources.
 - Do not print stored tokens unless the user explicitly asks for token output.
 - Do not ask the user for passwords in chat. Ask them to run `tripsy auth login --username USERNAME` locally, or use `TRIPSY_TOKEN`.
-- Use exact ISO-8601 UTC datetimes for every timed value, for example `2026-06-03T09:00:00Z`. Always pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`) so Tripsy displays the time in the correct timezone for the item's location.
+- Use exact ISO-8601 UTC datetimes for every timed value, for example `2026-06-03T09:00:00Z`. Always pair them with the relevant local IANA timezone field (`timezone`, `departure_timezone`, or `arrival_timezone`).
+- When displaying activity or lodging dates/times from MCP data, convert UTC `starts_at` and `ends_at` into the item's `timezone` before formatting local date/time.
+- When displaying transportation dates/times from MCP data, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone`; do not apply one endpoint's timezone to the other endpoint unless the fields explicitly match.
 - For trip dates, use date strings such as `2026-06-01`.
 - `trips list` returns trips where the authenticated user is travelling. Use `trips following` for trips the user follows but is not travelling on.
 - `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
@@ -52,7 +54,7 @@ Avoid these common itinerary mistakes:
 
 Use MCP when available because tools expose schemas, descriptions, safety annotations, and structured results without requiring shell command composition.
 
-MCP tool inputs follow the same itinerary rules as the CLI: timed fields are UTC, timezone fields carry the local display timezone, trip cover URLs must be direct Unsplash CDN URLs, and delete tools can be used when requested because deletes can be undone if necessary.
+MCP tool inputs follow the same itinerary rules as the CLI: timed fields are UTC, timezone fields carry the local display timezone, trip cover URLs must be direct Unsplash CDN URLs, and delete tools can be used when requested because deletes can be undone if necessary. MCP clients that display itinerary data must convert activity and lodging `starts_at`/`ends_at` values into `timezone`, transportation `departure_at` into `departure_timezone`, and transportation `arrival_at` into `arrival_timezone` before formatting local dates/times.
 
 Common tool names:
 
@@ -354,7 +356,7 @@ tripsy activities delete --trip TRIP_ID ACTIVITY_ID --json
 
 Useful activity fields: `activity_type`, `period`, `starts_at`, `ends_at`, `all_day`, `name`, `description`, `phone`, `website`, `checked`, `address`, `longitude`, `latitude`, `notes`, `timezone`, `price`, `currency`, and `assigned_users`.
 
-When displaying activities, resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
+When displaying activities, convert UTC `starts_at` and `ends_at` into the activity `timezone` before formatting local date/time. Resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
 
 Hostings:
 
@@ -377,6 +379,8 @@ tripsy transportations create --trip TRIP_ID --name "Flight to Rome" --transport
 ```
 
 Useful transportation fields: `transportation_type`, `departure_description`, `departure_at`, `departure_timezone`, `departure_address`, `departure_longitude`, `departure_latitude`, `arrival_description`, `arrival_at`, `arrival_timezone`, `arrival_address`, `arrival_longitude`, `arrival_latitude`, `company`, `seat_number`, `seat_class`, `transport_number`, `terminal`, `gate`, `price`, `currency`, and `assigned_users`.
+
+When displaying transportations, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone` before formatting local endpoint dates/times. Do not apply the departure timezone to arrival times or the arrival timezone to departure times unless those fields explicitly match.
 
 For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and include departure and arrival names/descriptions, addresses, latitudes, and longitudes.
 

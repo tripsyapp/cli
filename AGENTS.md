@@ -26,7 +26,9 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
 - Before saving a trip `cover_image_url`, validate that it is a real direct Unsplash CDN URL. If the client has external URL access, also confirm the image URL is reachable and not returning a `404`.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not bundle multiple places into one activity.
-- Use start and end times when possible. Send all timed values as UTC ISO-8601 strings. Always set the local IANA `timezone` for the activity, lodging, departure point, or arrival point so Tripsy displays the time in the correct timezone for that location.
+- Use start and end times when possible. Send all timed values as UTC ISO-8601 strings. Always set the local IANA `timezone` for the activity or lodging location, and `departure_timezone`/`arrival_timezone` for transportation endpoints.
+- When displaying activity or lodging dates/times from MCP data, convert UTC `starts_at` and `ends_at` into the item's `timezone` before formatting local date/time.
+- When displaying transportation dates/times from MCP data, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone`; do not apply one endpoint's timezone to the other endpoint unless the fields explicitly match.
 - Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
