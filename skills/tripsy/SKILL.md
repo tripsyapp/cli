@@ -354,7 +354,9 @@ tripsy activities update --trip TRIP_ID ACTIVITY_ID --notes "Bring tickets" --ch
 tripsy activities delete --trip TRIP_ID ACTIVITY_ID --json
 ```
 
-Useful activity fields: `activity_type`, `period`, `starts_at`, `ends_at`, `all_day`, `name`, `description`, `phone`, `website`, `checked`, `address`, `longitude`, `latitude`, `notes`, `timezone`, `price`, `currency`, and `assigned_users`.
+Useful activity fields: `activity_type`, `period`, `starts_at`, `ends_at`, `all_day`, `name`, `description`, `phone`, `website`, `checked`, `address`, `longitude`, `latitude`, `notes`, `timezone`, `provider_reservation_code`, `price`, `currency`, and `assigned_users`.
+
+Use `provider_reservation_code` for the provider-issued reservation, confirmation, or booking code for the activity, such as a tour confirmation number or restaurant booking code.
 
 When displaying activities, convert UTC `starts_at` and `ends_at` into the activity `timezone` before formatting local date/time. Resolve `activity_type` against the built-in activity category slugs first. If the slug is not built in, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and use the matching custom category metadata so the UI shows the correct category name, icon, and color. Custom category slugs only apply to Activity objects and must not be reused for other Tripsy resource types.
 
@@ -369,6 +371,8 @@ tripsy hostings update --trip TRIP_ID HOSTING_ID --room-number 402 --json
 
 Useful hosting fields: `starts_at`, `ends_at`, `timezone`, `name`, `description`, `address`, `longitude`, `latitude`, `phone`, `room_type`, `room_number`, `website`, `notes`, `provider_reservation_code`, `price`, `currency`, and `assigned_users`.
 
+Use `provider_reservation_code` for the provider-issued lodging reservation, confirmation, or booking code, such as a hotel confirmation number.
+
 Transportations:
 
 ```sh
@@ -378,7 +382,9 @@ tripsy transportations show --trip TRIP_ID TRANSPORTATION_ID --json
 tripsy transportations create --trip TRIP_ID --name "Flight to Rome" --transportation-type airplane --departure-description JFK --departure-at 2026-05-31T22:30:00Z --departure-timezone America/New_York --departure-latitude 40.6413 --departure-longitude -73.7781 --arrival-description FCO --arrival-at 2026-06-01T10:30:00Z --arrival-timezone Europe/Rome --arrival-latitude 41.8003 --arrival-longitude 12.2389 --json
 ```
 
-Useful transportation fields: `transportation_type`, `departure_description`, `departure_at`, `departure_timezone`, `departure_address`, `departure_longitude`, `departure_latitude`, `arrival_description`, `arrival_at`, `arrival_timezone`, `arrival_address`, `arrival_longitude`, `arrival_latitude`, `company`, `seat_number`, `seat_class`, `transport_number`, `terminal`, `gate`, `price`, `currency`, and `assigned_users`.
+Useful transportation fields: `transportation_type`, `departure_description`, `departure_at`, `departure_timezone`, `departure_address`, `departure_longitude`, `departure_latitude`, `arrival_description`, `arrival_at`, `arrival_timezone`, `arrival_address`, `arrival_longitude`, `arrival_latitude`, `company`, `seat_number`, `seat_class`, `transport_number`, `provider_reservation_code`, `terminal`, `gate`, `price`, `currency`, and `assigned_users`.
+
+Use `provider_reservation_code` for provider-issued transportation reservation, confirmation, or booking codes. Keep `transport_number` for the flight, train, bus, or service number.
 
 When displaying transportations, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone` before formatting local endpoint dates/times. Do not apply the departure timezone to arrival times or the arrival timezone to departure times unless those fields explicitly match.
 

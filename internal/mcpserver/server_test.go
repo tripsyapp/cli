@@ -144,29 +144,29 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
-	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "convert UTC starts_at/ends_at values into the activity timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
+	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "convert UTC starts_at/ends_at values into the activity timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "provider_reservation_code") || !strings.Contains(activitiesCreate.Description, "reservation, confirmation, or booking codes") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
 		t.Fatalf("activities create description should mention time, category, and coordinates guidance: %q", activitiesCreate.Description)
 	}
 	activitiesCreateSchema := toolSchemaString(t, activitiesCreate)
-	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "convert this value to the activity timezone") || !strings.Contains(activitiesCreateSchema, "before displaying the local date/time") || !strings.Contains(activitiesCreateSchema, "latitude") {
+	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "convert this value to the activity timezone") || !strings.Contains(activitiesCreateSchema, "before displaying the local date/time") || !strings.Contains(activitiesCreateSchema, "latitude") || !strings.Contains(activitiesCreateSchema, "provider_reservation_code") || !strings.Contains(activitiesCreateSchema, "tour confirmation number or restaurant booking code") {
 		t.Fatalf("activities create input schema should expose typed activity fields: %s", activitiesCreateSchema)
 	}
 
 	hostingsCreate := findTool(res.Tools, "tripsy_hostings_create")
-	if !strings.Contains(hostingsCreate.Description, "lodging rather than activities") || !strings.Contains(hostingsCreate.Description, "Timed values are always UTC") || !strings.Contains(hostingsCreate.Description, "local IANA timezone") || !strings.Contains(hostingsCreate.Description, "convert UTC starts_at/ends_at values into the lodging timezone") || !strings.Contains(hostingsCreate.Description, "address") || !strings.Contains(hostingsCreate.Description, "latitude") {
+	if !strings.Contains(hostingsCreate.Description, "lodging rather than activities") || !strings.Contains(hostingsCreate.Description, "Timed values are always UTC") || !strings.Contains(hostingsCreate.Description, "local IANA timezone") || !strings.Contains(hostingsCreate.Description, "convert UTC starts_at/ends_at values into the lodging timezone") || !strings.Contains(hostingsCreate.Description, "address") || !strings.Contains(hostingsCreate.Description, "latitude") || !strings.Contains(hostingsCreate.Description, "provider_reservation_code") || !strings.Contains(hostingsCreate.Description, "reservation, confirmation, or booking codes") {
 		t.Fatalf("hostings create description should mention lodging, time, and coordinates guidance: %q", hostingsCreate.Description)
 	}
 	hostingsCreateSchema := toolSchemaString(t, hostingsCreate)
-	if !strings.Contains(hostingsCreateSchema, "convert this value to the lodging timezone") || !strings.Contains(hostingsCreateSchema, "before displaying the local date/time") || !strings.Contains(hostingsCreateSchema, "UTC starts_at/ends_at values") {
+	if !strings.Contains(hostingsCreateSchema, "convert this value to the lodging timezone") || !strings.Contains(hostingsCreateSchema, "before displaying the local date/time") || !strings.Contains(hostingsCreateSchema, "UTC starts_at/ends_at values") || !strings.Contains(hostingsCreateSchema, "provider_reservation_code") || !strings.Contains(hostingsCreateSchema, "hotel confirmation number") {
 		t.Fatalf("hostings create input schema should expose lodging timezone conversion guidance: %s", hostingsCreateSchema)
 	}
 
 	transportationsCreate := findTool(res.Tools, "tripsy_transportations_create")
-	if !strings.Contains(transportationsCreate.Description, "Timed values are always UTC") || !strings.Contains(transportationsCreate.Description, "departure_timezone and arrival_timezone") || !strings.Contains(transportationsCreate.Description, "convert departure_at with departure_timezone and arrival_at with arrival_timezone") || !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") || !strings.Contains(transportationsCreate.Description, "airport IATA codes") || !strings.Contains(transportationsCreate.Description, "departure/arrival latitudes and longitudes") || !strings.Contains(transportationsCreate.Description, "omit name") {
+	if !strings.Contains(transportationsCreate.Description, "Timed values are always UTC") || !strings.Contains(transportationsCreate.Description, "departure_timezone and arrival_timezone") || !strings.Contains(transportationsCreate.Description, "convert departure_at with departure_timezone and arrival_at with arrival_timezone") || !strings.Contains(transportationsCreate.Description, "transfer activities") || !strings.Contains(transportationsCreate.Description, "roadtrip") || !strings.Contains(transportationsCreate.Description, "addresses") || !strings.Contains(transportationsCreate.Description, "airport IATA codes") || !strings.Contains(transportationsCreate.Description, "departure/arrival latitudes and longitudes") || !strings.Contains(transportationsCreate.Description, "omit name") || !strings.Contains(transportationsCreate.Description, "provider_reservation_code") || !strings.Contains(transportationsCreate.Description, "use transport_number for the flight") {
 		t.Fatalf("transportations create description should mention time, flight IATA/coordinates and transfer roadtrip endpoint guidance: %q", transportationsCreate.Description)
 	}
 	transportationsCreateSchema := toolSchemaString(t, transportationsCreate)
-	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "Timed values are always UTC") || !strings.Contains(transportationsCreateSchema, "convert this value to departure_timezone") || !strings.Contains(transportationsCreateSchema, "convert this value to arrival_timezone") || !strings.Contains(transportationsCreateSchema, "Required for flight airports") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") {
+	if !strings.Contains(transportationsCreateSchema, "transportation_type") || !strings.Contains(transportationsCreateSchema, "For flights, use airplane") || !strings.Contains(transportationsCreateSchema, "airport IATA code") || !strings.Contains(transportationsCreateSchema, "Timed values are always UTC") || !strings.Contains(transportationsCreateSchema, "convert this value to departure_timezone") || !strings.Contains(transportationsCreateSchema, "convert this value to arrival_timezone") || !strings.Contains(transportationsCreateSchema, "Required for flight airports") || !strings.Contains(transportationsCreateSchema, "omit name") || !strings.Contains(transportationsCreateSchema, "For transfer activities, use roadtrip") || !strings.Contains(transportationsCreateSchema, "departure_address") || !strings.Contains(transportationsCreateSchema, "arrival_address") || !strings.Contains(transportationsCreateSchema, "provider_reservation_code") || !strings.Contains(transportationsCreateSchema, "Use this for booking/confirmation codes") {
 		t.Fatalf("transportations create input schema should expose typed transfer fields: %s", transportationsCreateSchema)
 	}
 	transportationsList := findTool(res.Tools, "tripsy_transportations_list")
@@ -472,6 +472,36 @@ func TestTripCreateRejectsShortUnsplashPhotoID(t *testing.T) {
 	}
 	if called.Load() != 0 {
 		t.Fatalf("handler called %d times, want 0", called.Load())
+	}
+}
+
+func TestTypedCreatePayloadsIncludeProviderReservationCode(t *testing.T) {
+	activity := activityCreatePayload(activityCreateInput{
+		Name:                    "Colosseum Tour",
+		ProviderReservationCode: "TOUR-987654",
+	})
+	if activity["provider_reservation_code"] != "TOUR-987654" {
+		t.Fatalf("activity provider_reservation_code = %v, want TOUR-987654", activity["provider_reservation_code"])
+	}
+
+	hosting := hostingCreatePayload(hostingCreateInput{
+		Name:                    "Hotel Eden",
+		ProviderReservationCode: "HTL-123456",
+	})
+	if hosting["provider_reservation_code"] != "HTL-123456" {
+		t.Fatalf("hosting provider_reservation_code = %v, want HTL-123456", hosting["provider_reservation_code"])
+	}
+
+	transportation := transportationCreatePayload(transportationCreateInput{
+		TransportationType:      "airplane",
+		TransportNumber:         "AZ609",
+		ProviderReservationCode: "PNRABC",
+	})
+	if transportation["provider_reservation_code"] != "PNRABC" {
+		t.Fatalf("transportation provider_reservation_code = %v, want PNRABC", transportation["provider_reservation_code"])
+	}
+	if transportation["transport_number"] != "AZ609" {
+		t.Fatalf("transportation transport_number = %v, want AZ609", transportation["transport_number"])
 	}
 }
 

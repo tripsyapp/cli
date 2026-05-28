@@ -62,65 +62,68 @@ type tripCreateInput struct {
 }
 
 type activityCreateInput struct {
-	TripID       string         `json:"trip_id" jsonschema:"Tripsy trip id."`
-	Data         map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
-	Name         string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
-	ActivityType string         `json:"activity_type,omitempty" jsonschema:"Activity category slug. Use a built-in Activity category slug or a visible custom category slug returned by tripsy_categories_list. Custom category slugs are only valid on Activity objects through activity_type. Use the most specific available slug; do not invent ad hoc values such as sightseeing."`
-	StartsAt     string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
-	EndsAt       string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
-	Timezone     string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the activity date/time."`
-	Address      string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
-	Latitude     *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
-	Longitude    *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
-	Description  string         `json:"description,omitempty" jsonschema:"Optional activity description."`
-	Notes        string         `json:"notes,omitempty" jsonschema:"Optional notes."`
-	Website      string         `json:"website,omitempty" jsonschema:"Optional website URL."`
-	Price        *float64       `json:"price,omitempty" jsonschema:"Optional price."`
-	Currency     string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+	TripID                  string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data                    map[string]any `json:"data,omitempty" jsonschema:"Optional raw activity fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name                    string         `json:"name,omitempty" jsonschema:"Activity name. Create one activity per actual stop, reservation, meal, tour, or experience."`
+	ActivityType            string         `json:"activity_type,omitempty" jsonschema:"Activity category slug. Use a built-in Activity category slug or a visible custom category slug returned by tripsy_categories_list. Custom category slugs are only valid on Activity objects through activity_type. Use the most specific available slug; do not invent ad hoc values such as sightseeing."`
+	StartsAt                string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 start timestamp for timed activities, for example 2026-06-03T09:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
+	EndsAt                  string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
+	Timezone                string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the activity date/time."`
+	Address                 string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
+	Latitude                *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
+	Longitude               *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
+	Description             string         `json:"description,omitempty" jsonschema:"Optional activity description."`
+	Notes                   string         `json:"notes,omitempty" jsonschema:"Optional notes."`
+	Website                 string         `json:"website,omitempty" jsonschema:"Optional website URL."`
+	ProviderReservationCode string         `json:"provider_reservation_code,omitempty" jsonschema:"Provider-issued reservation, confirmation, or booking code for this activity, such as a tour confirmation number or restaurant booking code."`
+	Price                   *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency                string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
 }
 
 type hostingCreateInput struct {
-	TripID      string         `json:"trip_id" jsonschema:"Tripsy trip id."`
-	Data        map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
-	Name        string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
-	StartsAt    string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
-	EndsAt      string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
-	Timezone    string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the lodging date/time."`
-	Address     string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
-	Latitude    *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
-	Longitude   *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
-	Description string         `json:"description,omitempty" jsonschema:"Optional lodging description."`
-	RoomType    string         `json:"room_type,omitempty" jsonschema:"Optional room type."`
-	RoomNumber  string         `json:"room_number,omitempty" jsonschema:"Optional room number."`
-	Website     string         `json:"website,omitempty" jsonschema:"Optional website URL."`
-	Price       *float64       `json:"price,omitempty" jsonschema:"Optional price."`
-	Currency    string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+	TripID                  string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data                    map[string]any `json:"data,omitempty" jsonschema:"Optional raw hosting fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name                    string         `json:"name,omitempty" jsonschema:"Hotel or lodging name. Use hostings for lodging rather than activities."`
+	StartsAt                string         `json:"starts_at,omitempty" jsonschema:"UTC ISO-8601 check-in timestamp when known, for example 2026-06-01T14:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	EndsAt                  string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 check-out timestamp when known, for example 2026-06-05T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the lodging timezone before displaying the local date/time."`
+	Timezone                string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the lodging location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the lodging date/time."`
+	Address                 string         `json:"address,omitempty" jsonschema:"Full lodging address for map display."`
+	Latitude                *float64       `json:"latitude,omitempty" jsonschema:"Lodging latitude for map display."`
+	Longitude               *float64       `json:"longitude,omitempty" jsonschema:"Lodging longitude for map display."`
+	Description             string         `json:"description,omitempty" jsonschema:"Optional lodging description."`
+	RoomType                string         `json:"room_type,omitempty" jsonschema:"Optional room type."`
+	RoomNumber              string         `json:"room_number,omitempty" jsonschema:"Optional room number."`
+	Website                 string         `json:"website,omitempty" jsonschema:"Optional website URL."`
+	ProviderReservationCode string         `json:"provider_reservation_code,omitempty" jsonschema:"Provider-issued reservation, confirmation, or booking code for this lodging, such as a hotel confirmation number."`
+	Price                   *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency                string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
 }
 
 type transportationCreateInput struct {
-	TripID               string         `json:"trip_id" jsonschema:"Tripsy trip id."`
-	Data                 map[string]any `json:"data,omitempty" jsonschema:"Optional raw transportation fields. Prefer the typed top-level fields when possible; values here are merged first."`
-	Name                 string         `json:"name,omitempty" jsonschema:"Transportation segment name. For flights, omit name unless the user provided one."`
-	TransportationType   string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use roadtrip."`
-	DepartureDescription string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For flights, use the departure airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	DepartureAt          string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; MCP clients must convert this value to departure_timezone before displaying the local departure date/time."`
-	DepartureTimezone    string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. MCP clients must use this timezone to convert UTC departure_at before displaying the local departure date/time."`
-	DepartureAddress     string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
-	DepartureLatitude    *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for flight airports and transfer activities when known."`
-	DepartureLongitude   *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for flight airports and transfer activities when known."`
-	ArrivalDescription   string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For flights, use the arrival airport IATA code such as JFK or FCO. For transfers, include the real place name."`
-	ArrivalAt            string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known. Timed values are always UTC; MCP clients must convert this value to arrival_timezone before displaying the local arrival date/time."`
-	ArrivalTimezone      string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival location IANA timezone. MCP clients must use this timezone to convert UTC arrival_at before displaying the local arrival date/time."`
-	ArrivalAddress       string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
-	ArrivalLatitude      *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for flight airports and transfer activities when known."`
-	ArrivalLongitude     *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for flight airports and transfer activities when known."`
-	Description          string         `json:"description,omitempty" jsonschema:"Optional transportation description."`
-	Notes                string         `json:"notes,omitempty" jsonschema:"Optional notes."`
-	Company              string         `json:"company,omitempty" jsonschema:"Carrier, operator, or transfer company."`
-	TransportNumber      string         `json:"transport_number,omitempty" jsonschema:"Flight, train, bus, or booking number when relevant."`
-	VehicleDescription   string         `json:"vehicle_description,omitempty" jsonschema:"Vehicle description for cars, transfers, and roadtrips."`
-	Price                *float64       `json:"price,omitempty" jsonschema:"Optional price."`
-	Currency             string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
+	TripID                  string         `json:"trip_id" jsonschema:"Tripsy trip id."`
+	Data                    map[string]any `json:"data,omitempty" jsonschema:"Optional raw transportation fields. Prefer the typed top-level fields when possible; values here are merged first."`
+	Name                    string         `json:"name,omitempty" jsonschema:"Transportation segment name. For flights, omit name unless the user provided one."`
+	TransportationType      string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use roadtrip."`
+	DepartureDescription    string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For flights, use the departure airport IATA code such as JFK or FCO. For transfers, include the real place name."`
+	DepartureAt             string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; MCP clients must convert this value to departure_timezone before displaying the local departure date/time."`
+	DepartureTimezone       string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. MCP clients must use this timezone to convert UTC departure_at before displaying the local departure date/time."`
+	DepartureAddress        string         `json:"departure_address,omitempty" jsonschema:"Full departure address. Required for transfer activities when known."`
+	DepartureLatitude       *float64       `json:"departure_latitude,omitempty" jsonschema:"Departure latitude. Required for flight airports and transfer activities when known."`
+	DepartureLongitude      *float64       `json:"departure_longitude,omitempty" jsonschema:"Departure longitude. Required for flight airports and transfer activities when known."`
+	ArrivalDescription      string         `json:"arrival_description,omitempty" jsonschema:"Arrival location name or description. For flights, use the arrival airport IATA code such as JFK or FCO. For transfers, include the real place name."`
+	ArrivalAt               string         `json:"arrival_at,omitempty" jsonschema:"UTC ISO-8601 arrival timestamp when known. Timed values are always UTC; MCP clients must convert this value to arrival_timezone before displaying the local arrival date/time."`
+	ArrivalTimezone         string         `json:"arrival_timezone,omitempty" jsonschema:"Arrival location IANA timezone. MCP clients must use this timezone to convert UTC arrival_at before displaying the local arrival date/time."`
+	ArrivalAddress          string         `json:"arrival_address,omitempty" jsonschema:"Full arrival address. Required for transfer activities when known."`
+	ArrivalLatitude         *float64       `json:"arrival_latitude,omitempty" jsonschema:"Arrival latitude. Required for flight airports and transfer activities when known."`
+	ArrivalLongitude        *float64       `json:"arrival_longitude,omitempty" jsonschema:"Arrival longitude. Required for flight airports and transfer activities when known."`
+	Description             string         `json:"description,omitempty" jsonschema:"Optional transportation description."`
+	Notes                   string         `json:"notes,omitempty" jsonschema:"Optional notes."`
+	Company                 string         `json:"company,omitempty" jsonschema:"Carrier, operator, or transfer company."`
+	TransportNumber         string         `json:"transport_number,omitempty" jsonschema:"Flight, train, bus, or booking number when relevant."`
+	VehicleDescription      string         `json:"vehicle_description,omitempty" jsonschema:"Vehicle description for cars, transfers, and roadtrips."`
+	ProviderReservationCode string         `json:"provider_reservation_code,omitempty" jsonschema:"Provider-issued reservation, confirmation, or booking code for this transportation segment. Use this for booking/confirmation codes; use transport_number for the flight, train, bus, or service number."`
+	Price                   *float64       `json:"price,omitempty" jsonschema:"Optional price."`
+	Currency                string         `json:"currency,omitempty" jsonschema:"ISO currency code for price, such as EUR or USD."`
 }
 
 type idInput struct {
@@ -260,6 +263,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"The MCP server validates cover_image_url shape. If the client also has external URL access, check that the image URL is reachable and does not return a 404 before saving it.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
 		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through activity_type.",
+		"Use provider_reservation_code on activities, hostings, and transportations for the provider-issued reservation, confirmation, or booking code. For transportations, keep transport_number for the flight, train, bus, or service number.",
 		"When displaying activities, convert UTC starts_at/ends_at into the activity timezone before formatting the local date/time, and resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known. When displaying hostings, convert UTC starts_at/ends_at into the lodging timezone before formatting the local date/time.",
 		"Use transportations for point-to-point movement.",
@@ -289,35 +293,38 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 			"cover_image_url": "https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0",
 		},
 		"hosting": map[string]any{
-			"name":      "Hotel Eden",
-			"starts_at": "2026-06-01T14:00:00Z",
-			"ends_at":   "2026-06-05T11:00:00Z",
-			"timezone":  "Europe/Rome",
-			"address":   "Via Ludovisi 49, 00187 Rome, Italy",
-			"latitude":  41.9081,
-			"longitude": 12.4882,
+			"name":                      "Hotel Eden",
+			"starts_at":                 "2026-06-01T14:00:00Z",
+			"ends_at":                   "2026-06-05T11:00:00Z",
+			"timezone":                  "Europe/Rome",
+			"address":                   "Via Ludovisi 49, 00187 Rome, Italy",
+			"latitude":                  41.9081,
+			"longitude":                 12.4882,
+			"provider_reservation_code": "HTL-123456",
 		},
 		"activity": map[string]any{
-			"name":          "Colosseum Tour",
-			"activity_type": "tour",
-			"starts_at":     "2026-06-03T09:00:00Z",
-			"ends_at":       "2026-06-03T11:00:00Z",
-			"timezone":      "Europe/Rome",
-			"address":       "Piazza del Colosseo, 1, 00184 Rome, Italy",
-			"latitude":      41.8902,
-			"longitude":     12.4922,
+			"name":                      "Colosseum Tour",
+			"activity_type":             "tour",
+			"starts_at":                 "2026-06-03T09:00:00Z",
+			"ends_at":                   "2026-06-03T11:00:00Z",
+			"timezone":                  "Europe/Rome",
+			"address":                   "Piazza del Colosseo, 1, 00184 Rome, Italy",
+			"latitude":                  41.8902,
+			"longitude":                 12.4922,
+			"provider_reservation_code": "TOUR-987654",
 		},
 		"transfer": map[string]any{
-			"name":                  "Transfer to Hotel Eden",
-			"transportation_type":   "roadtrip",
-			"departure_description": "Rome Fiumicino Airport",
-			"departure_address":     "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
-			"departure_latitude":    41.8003,
-			"departure_longitude":   12.2389,
-			"arrival_description":   "Hotel Eden",
-			"arrival_address":       "Via Ludovisi 49, 00187 Rome, Italy",
-			"arrival_latitude":      41.9081,
-			"arrival_longitude":     12.4882,
+			"name":                      "Transfer to Hotel Eden",
+			"transportation_type":       "roadtrip",
+			"departure_description":     "Rome Fiumicino Airport",
+			"departure_address":         "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
+			"departure_latitude":        41.8003,
+			"departure_longitude":       12.2389,
+			"arrival_description":       "Hotel Eden",
+			"arrival_address":           "Via Ludovisi 49, 00187 Rome, Italy",
+			"arrival_latitude":          41.9081,
+			"arrival_longitude":         12.4882,
+			"provider_reservation_code": "CAR-246810",
 		},
 	}
 	data := map[string]any{
@@ -534,6 +541,7 @@ func activityCreatePayload(in activityCreateInput) map[string]any {
 	setString(payload, "description", in.Description)
 	setString(payload, "notes", in.Notes)
 	setString(payload, "website", in.Website)
+	setString(payload, "provider_reservation_code", in.ProviderReservationCode)
 	setFloat(payload, "price", in.Price)
 	setString(payload, "currency", in.Currency)
 	return payload
@@ -552,6 +560,7 @@ func hostingCreatePayload(in hostingCreateInput) map[string]any {
 	setString(payload, "room_type", in.RoomType)
 	setString(payload, "room_number", in.RoomNumber)
 	setString(payload, "website", in.Website)
+	setString(payload, "provider_reservation_code", in.ProviderReservationCode)
 	setFloat(payload, "price", in.Price)
 	setString(payload, "currency", in.Currency)
 	return payload
@@ -578,6 +587,7 @@ func transportationCreatePayload(in transportationCreateInput) map[string]any {
 	setString(payload, "company", in.Company)
 	setString(payload, "transport_number", in.TransportNumber)
 	setString(payload, "vehicle_description", in.VehicleDescription)
+	setString(payload, "provider_reservation_code", in.ProviderReservationCode)
 	setFloat(payload, "price", in.Price)
 	setString(payload, "currency", in.Currency)
 	return payload

@@ -26,6 +26,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - The `images.unsplash.com` path must be `photo-<numeric timestamp>-<asset hash>`. Do not store the Unsplash page URL, and do not turn short photo IDs like `nWdsya5_Yms` into `https://images.unsplash.com/photo-nWdsya5_Yms`.
 - Before saving a trip `cover_image_url`, validate that it is a real direct Unsplash CDN URL. If the client has external URL access, also confirm the image URL is reachable and not returning a `404`.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not bundle multiple places into one activity.
+- Use `provider_reservation_code` on activities, hostings, and transportations for the provider-issued reservation, confirmation, or booking code for that item.
+- For transportation, keep `transport_number` for the flight, train, bus, or service number; use `provider_reservation_code` for the booking or confirmation code.
 - Use start and end times when possible. Send all timed values as UTC ISO-8601 strings. Always set the local IANA `timezone` for the activity or lodging location, and `departure_timezone`/`arrival_timezone` for transportation endpoints.
 - When displaying activity or lodging dates/times from MCP data, convert UTC `starts_at` and `ends_at` into the item's `timezone` before formatting local date/time.
 - When displaying transportation dates/times from MCP data, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone`; do not apply one endpoint's timezone to the other endpoint unless the fields explicitly match.
@@ -66,7 +68,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
     "timezone": "Europe/Rome",
     "address": "Via Ludovisi 49, 00187 Rome, Italy",
     "latitude": 41.9081,
-    "longitude": 12.4882
+    "longitude": 12.4882,
+    "provider_reservation_code": "HTL-123456"
   },
   "activity": {
     "name": "Colosseum Tour",
@@ -76,7 +79,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
     "timezone": "Europe/Rome",
     "address": "Piazza del Colosseo, 1, 00184 Rome, Italy",
     "latitude": 41.8902,
-    "longitude": 12.4922
+    "longitude": 12.4922,
+    "provider_reservation_code": "TOUR-987654"
   },
   "transfer": {
     "name": "Transfer to Hotel Eden",
@@ -88,7 +92,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
     "arrival_description": "Hotel Eden",
     "arrival_address": "Via Ludovisi 49, 00187 Rome, Italy",
     "arrival_latitude": 41.9081,
-    "arrival_longitude": 12.4882
+    "arrival_longitude": 12.4882,
+    "provider_reservation_code": "CAR-246810"
   }
 }
 ```
