@@ -31,7 +31,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Use start and end times when possible. Send all timed values as UTC ISO-8601 strings. Always set the local IANA `timezone` for the activity or lodging location, and `departure_timezone`/`arrival_timezone` for transportation endpoints.
 - When displaying activity or lodging dates/times from MCP data, convert UTC `starts_at` and `ends_at` into the item's `timezone` before formatting local date/time.
 - When displaying transportation dates/times from MCP data, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone`; do not apply one endpoint's timezone to the other endpoint unless the fields explicitly match.
-- Add `address`, `latitude`, and `longitude` for location-based activities and lodging so the Tripsy map is populated.
+- Activity creation through MCP requires `latitude` and `longitude`; include `address` when known so the Tripsy map is populated.
+- Add `address`, `latitude`, and `longitude` for lodging when known so the Tripsy map is populated.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
 - Activities can use either a documented built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` that is not in the built-in list, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and resolve the slug there before displaying the category name, icon, or color.
@@ -47,7 +48,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Do not create one activity named "Day 1 itinerary" or similar that contains multiple stops.
 - Do not put hotels or lodging into activities.
 - Do not put transfers into activities.
-- Do not omit coordinates when a location is known.
+- Do not create activities without coordinates.
 - Do not treat an unknown `activity_type` as invalid until you have checked whether it is a visible custom category. Do not invent ad hoc values such as `sightseeing`.
 
 ## Golden Path Example

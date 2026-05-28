@@ -144,11 +144,11 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	activitiesCreate := findTool(res.Tools, "tripsy_activities_create")
-	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "convert UTC starts_at/ends_at values into the activity timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "latitude/longitude") || !strings.Contains(activitiesCreate.Description, "provider_reservation_code") || !strings.Contains(activitiesCreate.Description, "reservation, confirmation, or booking codes") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
+	if !strings.Contains(activitiesCreate.Description, "one activity per actual stop") || !strings.Contains(activitiesCreate.Description, "Timed values are always UTC") || !strings.Contains(activitiesCreate.Description, "local IANA timezone") || !strings.Contains(activitiesCreate.Description, "convert UTC starts_at/ends_at values into the activity timezone") || !strings.Contains(activitiesCreate.Description, "activity_type") || !strings.Contains(activitiesCreate.Description, "visible custom category slug") || !strings.Contains(activitiesCreate.Description, "only valid on Activity objects") || !strings.Contains(activitiesCreate.Description, "tripsy_categories_list") || !strings.Contains(activitiesCreate.Description, "correct custom activity category name") || !strings.Contains(activitiesCreate.Description, "requires latitude and longitude") || !strings.Contains(activitiesCreate.Description, "provider_reservation_code") || !strings.Contains(activitiesCreate.Description, "reservation, confirmation, or booking codes") || !strings.Contains(activitiesCreate.Description, "sightseeing") {
 		t.Fatalf("activities create description should mention time, category, and coordinates guidance: %q", activitiesCreate.Description)
 	}
 	activitiesCreateSchema := toolSchemaString(t, activitiesCreate)
-	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "convert this value to the activity timezone") || !strings.Contains(activitiesCreateSchema, "before displaying the local date/time") || !strings.Contains(activitiesCreateSchema, "latitude") || !strings.Contains(activitiesCreateSchema, "provider_reservation_code") || !strings.Contains(activitiesCreateSchema, "tour confirmation number or restaurant booking code") {
+	if !strings.Contains(activitiesCreateSchema, "activity_type") || !strings.Contains(activitiesCreateSchema, "visible custom category slug") || !strings.Contains(activitiesCreateSchema, "tripsy_categories_list") || !strings.Contains(activitiesCreateSchema, "only valid on Activity objects") || !strings.Contains(activitiesCreateSchema, "do not invent ad hoc values such as sightseeing") || !strings.Contains(activitiesCreateSchema, "Timed values are always UTC") || !strings.Contains(activitiesCreateSchema, "convert this value to the activity timezone") || !strings.Contains(activitiesCreateSchema, "before displaying the local date/time") || !strings.Contains(activitiesCreateSchema, "latitude") || !strings.Contains(activitiesCreateSchema, "Activity creates are rejected unless both latitude and longitude are present") || !strings.Contains(activitiesCreateSchema, "provider_reservation_code") || !strings.Contains(activitiesCreateSchema, "tour confirmation number or restaurant booking code") {
 		t.Fatalf("activities create input schema should expose typed activity fields: %s", activitiesCreateSchema)
 	}
 
@@ -505,6 +505,147 @@ func TestTypedCreatePayloadsIncludeProviderReservationCode(t *testing.T) {
 	}
 }
 
+func TestActivityCreateRequiresCoordinates(t *testing.T) {
+	var called atomic.Int32
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		t.Errorf("API should not be called when activity coordinates are missing")
+	}))
+	defer cleanup()
+
+	for _, tt := range []struct {
+		name string
+		args map[string]any
+		want []string
+	}{
+		{
+			name: "missing both",
+			args: map[string]any{
+				"trip_id":       "42",
+				"name":          "Colosseum Tour",
+				"activity_type": "tour",
+			},
+			want: []string{"required", "latitude", "longitude"},
+		},
+		{
+			name: "missing longitude",
+			args: map[string]any{
+				"trip_id":       "42",
+				"name":          "Colosseum Tour",
+				"activity_type": "tour",
+				"latitude":      41.8902,
+			},
+			want: []string{"required", "longitude"},
+		},
+		{
+			name: "data cannot bypass required top-level coordinates",
+			args: map[string]any{
+				"trip_id": "42",
+				"data": map[string]any{
+					"name":     "Colosseum Tour",
+					"latitude": 41.8902,
+				},
+			},
+			want: []string{"required", "latitude", "longitude"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			res := callTool(t, session, "tripsy_activities_create", tt.args)
+			if !res.IsError {
+				t.Fatalf("expected tool error for missing coordinates, got: %s", toolText(res))
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(toolText(res), want) {
+					t.Fatalf("error text = %q, want %q", toolText(res), want)
+				}
+			}
+		})
+	}
+
+	if called.Load() != 0 {
+		t.Fatalf("handler called %d times, want 0", called.Load())
+	}
+}
+
+func TestActivityCreateForwardsCoordinates(t *testing.T) {
+	var called atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/trip/42/activities" {
+			t.Errorf("path = %s, want /v1/trip/42/activities", r.URL.Path)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		if body["latitude"] != 41.8902 || body["longitude"] != 12.4922 {
+			t.Errorf("coordinates not forwarded: %#v", body)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":101,"name":"Colosseum Tour"}`))
+	})
+	session, cleanup := connectTestSession(t, "test-token", handler)
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_activities_create", map[string]any{
+		"trip_id":       "42",
+		"name":          "Colosseum Tour",
+		"activity_type": "tour",
+		"latitude":      41.8902,
+		"longitude":     12.4922,
+	})
+	if res.IsError {
+		t.Fatalf("tool returned error: %s", toolText(res))
+	}
+	if called.Load() != 1 {
+		t.Fatalf("handler called %d times, want 1", called.Load())
+	}
+}
+
+func TestRequireActivityCoordinatesValidatesPayload(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		payload map[string]any
+		want    string
+	}{
+		{
+			name:    "missing latitude",
+			payload: map[string]any{"longitude": 12.4922},
+			want:    "latitude is required",
+		},
+		{
+			name:    "missing longitude",
+			payload: map[string]any{"latitude": 41.8902},
+			want:    "longitude is required",
+		},
+		{
+			name:    "non numeric latitude",
+			payload: map[string]any{"latitude": "41.8902", "longitude": 12.4922},
+			want:    "latitude is required",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := requireActivityCoordinates(tt.payload)
+			if err == nil {
+				t.Fatal("expected coordinate validation error")
+			}
+			if !strings.Contains(err.Error(), tt.want) || !strings.Contains(err.Error(), "Tripsy map is populated") {
+				t.Fatalf("error = %q, want %q and map guidance", err.Error(), tt.want)
+			}
+		})
+	}
+
+	if err := requireActivityCoordinates(map[string]any{"latitude": 0, "longitude": 0}); err != nil {
+		t.Fatalf("zero coordinates should be valid: %v", err)
+	}
+}
+
 func TestTransportationCreateAcceptsTypedTransferFields(t *testing.T) {
 	var called atomic.Int32
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -835,6 +976,32 @@ func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
 				t.Fatalf("error text = %q, want %q", toolText(res), tt.want)
 			}
 		})
+	}
+}
+
+func TestRawRequestRejectsActivityCreateBypass(t *testing.T) {
+	var called atomic.Int32
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called.Add(1)
+		t.Errorf("API should not be called for raw activity creates")
+	}))
+	defer cleanup()
+
+	res := callTool(t, session, "tripsy_raw_request", map[string]any{
+		"method": "POST",
+		"path":   "/v1/trip/42/activities",
+		"data": map[string]any{
+			"name": "Colosseum Tour",
+		},
+	})
+	if !res.IsError {
+		t.Fatalf("expected tool error for raw activity create, got: %s", toolText(res))
+	}
+	if !strings.Contains(toolText(res), "tripsy_activities_create") || !strings.Contains(toolText(res), "required latitude and longitude validation") {
+		t.Fatalf("error text = %q, want typed tool validation guidance", toolText(res))
+	}
+	if called.Load() != 0 {
+		t.Fatalf("handler called %d times, want 0", called.Load())
 	}
 }
 

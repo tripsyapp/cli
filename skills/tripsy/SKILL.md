@@ -30,7 +30,8 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Before saving a trip `cover_image_url`, validate that it is a real direct Unsplash CDN URL. If the client has external URL access, also confirm the image URL is reachable and not returning a `404`.
 - For itinerary planning, set trip dates whenever day-by-day timed planning is needed. If the user did not provide dates but asks for a planned itinerary, choose explicit reasonable dates and state them.
 - Create one item per actual stop, reservation, meal, tour, or activity. Do not create one activity that bundles a full day or multiple places.
-- Set `latitude` and `longitude` for every location-based activity, hosting, and transportation point so Tripsy's map is populated.
+- Set `latitude` and `longitude` for every activity; MCP rejects activity creation without both coordinates so Tripsy's map is populated.
+- Set `latitude` and `longitude` for every known hosting and transportation point so Tripsy's map is populated.
 - Use the most specific supported category slug for Activity `activity_type`; do not default to `general` or `tour` when a better category exists.
 - Activities can use either a built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` outside the built-in list, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and resolve the slug there before displaying the category name, icon, or color.
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
@@ -266,7 +267,7 @@ Tripsy works best when the itinerary is structured as separate timed items:
 - Use one activity per place or experience, for example separate records for a museum, lunch, park, and evening event.
 - Avoid day-summary activities such as "Day 1: Museum, Lunch and Park" unless the user explicitly asks for a note-style summary.
 - Prefer start and end times for activities. Store every timed value as a UTC ISO-8601 string and set the local `timezone` for the activity location.
-- Include `address`, `latitude`, and `longitude` whenever a location is known.
+- Include `latitude` and `longitude` for every activity, and include `address` when known.
 - Use `hostings` for hotels/lodging and `transportations` for transport segments instead of forcing them into activities.
 
 Golden path payload shape:

@@ -70,8 +70,8 @@ type activityCreateInput struct {
 	EndsAt                  string         `json:"ends_at,omitempty" jsonschema:"UTC ISO-8601 end timestamp for timed activities, for example 2026-06-03T11:00:00Z. Timed values are always UTC; MCP clients must convert this value to the activity timezone before displaying the local date/time."`
 	Timezone                string         `json:"timezone,omitempty" jsonschema:"Local IANA timezone for the activity location, such as Europe/Rome. MCP clients must use this timezone to convert UTC starts_at/ends_at values before displaying the activity date/time."`
 	Address                 string         `json:"address,omitempty" jsonschema:"Full address for map-ready location activities."`
-	Latitude                *float64       `json:"latitude,omitempty" jsonschema:"Latitude for map-ready location activities."`
-	Longitude               *float64       `json:"longitude,omitempty" jsonschema:"Longitude for map-ready location activities."`
+	Latitude                *float64       `json:"latitude" jsonschema:"Required latitude for the activity location. Activity creates are rejected unless both latitude and longitude are present so the Tripsy map is populated."`
+	Longitude               *float64       `json:"longitude" jsonschema:"Required longitude for the activity location. Activity creates are rejected unless both latitude and longitude are present so the Tripsy map is populated."`
 	Description             string         `json:"description,omitempty" jsonschema:"Optional activity description."`
 	Notes                   string         `json:"notes,omitempty" jsonschema:"Optional notes."`
 	Website                 string         `json:"website,omitempty" jsonschema:"Optional website URL."`
@@ -240,7 +240,7 @@ func (s *service) rawRequest(ctx context.Context, req *mcp.CallToolRequest, in r
 	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
 		return nil, nil, fmt.Errorf("path must be a Tripsy API path beginning with /")
 	}
-	if err := allowRawRequestPath(path); err != nil {
+	if err := allowRawRequestPath(method, path); err != nil {
 		return nil, nil, err
 	}
 	query := url.Values{}
@@ -262,7 +262,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"The images.unsplash.com path must be photo-<numeric timestamp>-<asset hash>; never use unsplash.com/photos/... pages or short IDs such as https://images.unsplash.com/photo-nWdsya5_Yms.",
 		"The MCP server validates cover_image_url shape. If the client also has external URL access, check that the image URL is reachable and does not return a 404 before saving it.",
 		"Create one Tripsy item per actual stop, reservation, meal, tour, lodging, or transportation segment.",
-		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through activity_type.",
+		"Use activities for stops, meals, tours, events, and experiences; choose the most specific built-in activity_type slug or a visible custom category slug. Activity creation requires latitude and longitude so the Tripsy map is populated. Custom category slugs are only valid on Activity objects through activity_type.",
 		"Use provider_reservation_code on activities, hostings, and transportations for the provider-issued reservation, confirmation, or booking code. For transportations, keep transport_number for the flight, train, bus, or service number.",
 		"When displaying activities, convert UTC starts_at/ends_at into the activity timezone before formatting the local date/time, and resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known. When displaying hostings, convert UTC starts_at/ends_at into the lodging timezone before formatting the local date/time.",
@@ -271,7 +271,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
 		"Use exact UTC ISO-8601 timestamps for every timed value and set the relevant local timezone so display clients can convert UTC values into the correct local date/time for the item's location.",
 		"When displaying transportations, convert departure_at with departure_timezone and arrival_at with arrival_timezone; never apply a single timezone to both endpoints unless those two fields explicitly match.",
-		"Add address, latitude, and longitude for map-relevant activities, hostings, and transportation endpoints.",
+		"Add required latitude and longitude for every activity, and add address when known. Add address, latitude, and longitude for map-relevant hostings and transportation endpoints.",
 		"Delete tools may be executed when requested; Tripsy delete operations are recoverable if they need to be undone.",
 	}
 	doNot := []string{
@@ -335,7 +335,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 	return nil, map[string]any{"summary": "Tripsy itinerary guidance", "data": data}, nil
 }
 
-func allowRawRequestPath(apiPath string) error {
+func allowRawRequestPath(method, apiPath string) error {
 	cleaned := path.Clean("/" + strings.TrimLeft(apiPath, "/"))
 	blocked := map[string]string{
 		"/v1/emails":            "email",
@@ -351,7 +351,15 @@ func allowRawRequestPath(apiPath string) error {
 	if strings.Contains(cleaned, "/documents") {
 		return fmt.Errorf("document endpoints are not exposed by the Tripsy MCP server yet")
 	}
+	if method == "POST" && isActivityCollectionPath(cleaned) {
+		return fmt.Errorf("activity creates must use tripsy_activities_create so required latitude and longitude validation is applied")
+	}
 	return nil
+}
+
+func isActivityCollectionPath(apiPath string) bool {
+	parts := strings.Split(strings.Trim(apiPath, "/"), "/")
+	return len(parts) == 4 && parts[0] == "v1" && parts[1] == "trip" && parts[3] == "activities"
 }
 
 func (s *service) meShow(ctx context.Context, req *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
@@ -477,6 +485,9 @@ func (s *service) activityCreate(ctx context.Context, req *mcp.CallToolRequest, 
 	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
+	if err := requireActivityCoordinates(payload); err != nil {
+		return nil, nil, err
+	}
 	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/activities", tripDataQuery(nil), payload, "Activity created"))
 }
 
@@ -526,6 +537,47 @@ func validateCoverImageURL(payload map[string]any) error {
 		return fmt.Errorf("cover_image_url must be a string. %s", coverimage.DirectUnsplashGuidance)
 	}
 	return coverimage.ValidateDirectUnsplashURL(raw)
+}
+
+func requireActivityCoordinates(payload map[string]any) error {
+	if _, ok := numericValue(payload["latitude"]); !ok {
+		return fmt.Errorf("activity latitude is required and must be numeric. Activity creates must include both latitude and longitude so the Tripsy map is populated")
+	}
+	if _, ok := numericValue(payload["longitude"]); !ok {
+		return fmt.Errorf("activity longitude is required and must be numeric. Activity creates must include both latitude and longitude so the Tripsy map is populated")
+	}
+	return nil
+}
+
+func numericValue(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	default:
+		return 0, false
+	}
 }
 
 func activityCreatePayload(in activityCreateInput) map[string]any {
