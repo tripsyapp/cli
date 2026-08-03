@@ -443,7 +443,7 @@ func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idI
 	if strings.TrimSpace(in.ID) == "" {
 		return nil, nil, fmt.Errorf("id is required")
 	}
-	return toolOutput(s.do(ctx, req, "GET", "/v2/trips/"+apiPathSegment(in.ID)+"/", nil, nil, "Trip "+in.ID))
+	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip "+in.ID))
 }
 
 func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in tripCreateInput) (*mcp.CallToolResult, any, error) {

@@ -1140,7 +1140,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v2/trips/"+apiPathSegment(id)+"/", nil, nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -2346,7 +2346,7 @@ func commandCatalog() []commandSpec {
 				"tripsy trips create --name Italy --starts-at 2026-06-01 --ends-at 2026-06-15 --timezone Europe/Rome --cover-image-url 'https://images.unsplash.com/photo-1529260830199-42c24126f198?ixlib=rb-4.1.0'",
 				"tripsy trips update 42 --description 'Summer vacation'",
 			},
-			Gotchas: []string{"Use a real direct images.unsplash.com/photo-<numeric timestamp>-<asset hash> URL copied from an image result for cover_image_url; do not use an unsplash.com/photos page URL or short IDs such as photo-nWdsya5_Yms.", "Trip and itinerary read commands use the lean v2 API and combine paginated results."},
+			Gotchas: []string{"Use a real direct images.unsplash.com/photo-<numeric timestamp>-<asset hash> URL copied from an image result for cover_image_url; do not use an unsplash.com/photos page URL or short IDs such as photo-nWdsya5_Yms.", "Trip lists and itinerary subresource reads use the lean v2 API and combine paginated results; individual trip detail reads use v1."},
 		},
 		resourceCommandSpec("hostings", "hosting", "Hotel and lodging plans", "tripsy hostings create --trip 42 --name 'Hotel Eden' --starts-at 2026-06-01T14:00:00Z"),
 		resourceCommandSpec("activities", "activity", "Scheduled or unscheduled trip activities", "tripsy activities create --trip 42 --name 'Colosseum Tour' --activity-type tour"),

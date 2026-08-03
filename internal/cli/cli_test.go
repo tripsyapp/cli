@@ -143,7 +143,7 @@ func TestFormatFullObjectShowsDocumentedAndExtraFields(t *testing.T) {
 	}
 }
 
-func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
+func TestTripsCommandsUseV2ForListsAndV1ForDetailsAndWrites(t *testing.T) {
 	for _, tt := range []struct {
 		name          string
 		args          []string
@@ -152,7 +152,7 @@ func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 		fieldsExclude string
 	}{
 		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v2/trips/"},
-		{name: "show", args: []string{"show", "42"}, method: http.MethodGet, path: "/v2/trips/42/"},
+		{name: "show", args: []string{"show", "42"}, method: http.MethodGet, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
 		{name: "create", args: []string{"create", "--name", "Copenhagen"}, method: http.MethodPost, path: "/v1/trips", fieldsExclude: "documents,emails"},
 		{name: "update", args: []string{"update", "42", "--name", "Copenhagen"}, method: http.MethodPatch, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
 		{name: "delete", args: []string{"delete", "42"}, method: http.MethodDelete, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
@@ -187,8 +187,11 @@ func TestTripsCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
 
 func TestTripsShowEscapesIDPathSegment(t *testing.T) {
 	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
-		if got := r.RequestURI; !strings.HasPrefix(got, "/v2/trips/..%2Fme/") {
+		if got := r.RequestURI; !strings.HasPrefix(got, "/v1/trips/..%2Fme?") {
 			t.Errorf("request URI = %q, want escaped trip id segment", got)
+		}
+		if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"../me","name":"Escaped"}`))
