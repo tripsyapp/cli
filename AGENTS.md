@@ -123,3 +123,29 @@ lodging
 ```text
 airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
 ```
+
+## Pull Request Conventions
+
+- Do not prefix PR titles with `[codex]`.
+- Do not add `codex` labels, tags, or title markers.
+- Use a conventional PR title prefix that matches the change type:
+  - `fix:` for bug fixes
+  - `feat:` for user-facing features
+  - `chore:` for maintenance, release, dependency, or tooling work
+  - `test:` for test-only changes
+  - `refactor:` for behavior-preserving code restructuring
+  - `docs:` for documentation-only changes
+- Add the matching GitHub label when opening or updating a PR:
+  - `bug` for bug fixes
+  - `feature` for user-facing features
+  - `improvement` for behavior or UX improvements
+  - `chore` for maintenance, release, dependency, or tooling work
+  - `dependencies`, `github_actions`, `swift_package_manager`, or `performance` when those labels more specifically describe the work
+- Include the issue identifier when available:
+  - `fix(TRI-2234): correct ends in day count`
+  - `feat(TRI-2201): add route preference picker`
+  - `chore: update release tags`
+- Open PRs as ready for review unless explicitly asked to open a draft PR.
+- Every PR body must include `Summary`, `Implementation Details`, and `Validation` sections, plus the issue/ticket reference when available.
+- The `Implementation Details` section must explain the material code changes at file and symbol level: list newly created files, types, or components, and describe the functions, models, views, or existing files that were changed and what each change accomplishes.
+- Keep the `Implementation Details` section synchronized with the final diff before opening or updating the PR.
