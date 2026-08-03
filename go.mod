@@ -1,6 +1,6 @@
 module github.com/tripsyapp/cli
 
-go 1.26.3
+go 1.26.5
 
 require github.com/modelcontextprotocol/go-sdk v1.5.0
 
