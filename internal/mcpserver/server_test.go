@@ -712,8 +712,11 @@ func TestTypedToolEscapesPathIDs(t *testing.T) {
 	var called atomic.Int32
 	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called.Add(1)
-		if r.URL.EscapedPath() != "/v2/trips/a%2Fb/" {
-			t.Errorf("escaped path = %s, want /v2/trips/a%%2Fb/", r.URL.EscapedPath())
+		if r.URL.EscapedPath() != "/v1/trips/a%2Fb" {
+			t.Errorf("escaped path = %s, want /v1/trips/a%%2Fb", r.URL.EscapedPath())
+		}
+		if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
+			t.Errorf("fields! = %q, want documents,emails", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"a/b"}`))
