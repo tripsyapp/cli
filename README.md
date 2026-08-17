@@ -207,7 +207,7 @@ https://mcp.tripsy.app/ -> http://127.0.0.1:8787/
 https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
 ```
 
-HTTP MCP always requires each request to include `Authorization: Bearer <Tripsy token>`. The server validates that token against `/v1/me` and uses it only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user.
+HTTP MCP always requires each request to include `Authorization: Bearer <token>`. When hosted OAuth is configured, the server first validates OAuth access tokens through the issuer's userinfo endpoint, then falls back to validating Tripsy API tokens against `/v1/me`. It uses the validated token only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user.
 
 HTTP mode intentionally ignores `--token`, `TRIPSY_TOKEN`, keychain tokens, and legacy `credentials.json` tokens to avoid server-side credential fallback. For public hosted servers, keep `--disable-raw-request` enabled unless you intentionally want to expose the broader `tripsy_raw_request` tool.
 

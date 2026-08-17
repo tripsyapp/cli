@@ -295,7 +295,11 @@ func requireToken(client *api.Client) error {
 const tokenVerifierCacheTTL = 5 * time.Minute
 
 func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
-	verifier := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+	return cachedVerifier(bearerTokenVerifier(baseURL), tokenVerifierCacheTTL)
+}
+
+func bearerTokenVerifier(baseURL string) auth.TokenVerifier {
+	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		token = strings.TrimSpace(token)
 		if token == "" {
 			return nil, fmt.Errorf("%w: empty Tripsy token", auth.ErrInvalidToken)
@@ -318,11 +322,14 @@ func BearerTokenVerifier(baseURL string) auth.TokenVerifier {
 			},
 		}, nil
 	}
-	return cachedVerifier(verifier, tokenVerifierCacheTTL)
 }
 
 func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
-	verifier := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+	return cachedVerifier(oauthBearerTokenVerifier(userinfoEndpoint), tokenVerifierCacheTTL)
+}
+
+func oauthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
+	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		token = strings.TrimSpace(token)
 		if token == "" {
 			return nil, fmt.Errorf("%w: empty OAuth access token", auth.ErrInvalidToken)
@@ -345,6 +352,20 @@ func OAuthBearerTokenVerifier(userinfoEndpoint string) auth.TokenVerifier {
 				tokenInfoAuthSchemeKey:  "Bearer",
 			},
 		}, nil
+	}
+}
+
+// HostedTokenVerifier accepts hosted OAuth access tokens and falls back to a
+// Tripsy API token only when the OAuth issuer rejects the credential.
+func HostedTokenVerifier(apiBaseURL, userinfoEndpoint string) auth.TokenVerifier {
+	oauthVerifier := oauthBearerTokenVerifier(userinfoEndpoint)
+	tripsyVerifier := bearerTokenVerifier(apiBaseURL)
+	verifier := func(ctx context.Context, token string, request *http.Request) (*auth.TokenInfo, error) {
+		info, err := oauthVerifier(ctx, token, request)
+		if err == nil || !errors.Is(err, auth.ErrInvalidToken) {
+			return info, err
+		}
+		return tripsyVerifier(ctx, token, request)
 	}
 	return cachedVerifier(verifier, tokenVerifierCacheTTL)
 }
