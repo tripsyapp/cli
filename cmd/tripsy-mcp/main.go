@@ -8,9 +8,11 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +23,10 @@ import (
 	"github.com/tripsyapp/cli/internal/mcpserver"
 )
 
-const openAIAppsChallengeResponse = "aYBlXTk9xrrpyW7v1pieVqn9w9BxXjRLWPak0uJtkqc"
+const (
+	openAIAppsChallengeResponse = "aYBlXTk9xrrpyW7v1pieVqn9w9BxXjRLWPak0uJtkqc"
+	mcpDocumentationURL         = "https://tripsy.help/article/97-ai-tools"
+)
 
 func main() {
 	var opts mcpserver.Options
@@ -149,7 +154,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 	}
 	paths := registerMCPHTTPHandlers(mux, path, httpHandler)
 	log.Printf("Tripsy MCP listening on http://%s%s (aliases=%s api_base=%s auth_backend=%s has_token=%t require_bearer=%t)", addr, path, strings.Join(paths, ","), info.APIBase, info.AuthBackend, info.HasToken, requireBearer)
-	log.Fatal(newHTTPServer(addr, mux).ListenAndServe())
+	log.Fatal(newHTTPServer(addr, redirectBrowserToMCPDocumentation(mux)).ListenAndServe())
 }
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
@@ -159,6 +164,37 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
+}
+
+func redirectBrowserToMCPDocumentation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/" || r.Header.Get("Authorization") != "" || !acceptsHTML(r.Header.Get("Accept")) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Add("Vary", "Accept")
+		w.Header().Add("Vary", "Authorization")
+		http.Redirect(w, r, mcpDocumentationURL, http.StatusFound)
+	})
+}
+
+func acceptsHTML(accept string) bool {
+	for _, value := range strings.Split(accept, ",") {
+		mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(value))
+		if err != nil || (mediaType != "text/html" && mediaType != "application/xhtml+xml") {
+			continue
+		}
+		if quality, ok := params["q"]; ok {
+			parsedQuality, err := strconv.ParseFloat(quality, 64)
+			if err != nil || parsedQuality <= 0 {
+				continue
+			}
+		}
+		return true
+	}
+	return false
 }
 
 type explicitToolAnnotationsWriter struct {

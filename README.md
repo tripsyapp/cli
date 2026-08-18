@@ -158,6 +158,8 @@ Use Tripsy's MCP server when an agent or app supports MCP. Prefer MCP for model-
 
 Tripsy operates a public MCP server at `https://mcp.tripsy.app`. OAuth-capable clients such as Claude and ChatGPT can connect directly without installing anything. Authentication uses the Tripsy OAuth authorization flow at `https://my.tripsy.app`.
 
+Opening the hosted endpoint in a web browser redirects to the [Tripsy AI Tools setup guide](https://tripsy.help/article/97-ai-tools). Machine requests continue to receive the MCP OAuth challenge.
+
 The previous `https://mcp.tripsy.app/mcp` endpoint remains available for existing clients.
 
 ### Self-Hosted Stdio

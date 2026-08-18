@@ -71,6 +71,77 @@ func TestNewHTTPServerHasDefensiveTimeouts(t *testing.T) {
 	}
 }
 
+func TestRedirectBrowserToMCPDocumentation(t *testing.T) {
+	nextCalls := 0
+	handler := redirectBrowserToMCPDocumentation(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		nextCalls++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8")
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusFound)
+	}
+	if got := res.Header().Get("Location"); got != mcpDocumentationURL {
+		t.Fatalf("Location = %q, want %q", got, mcpDocumentationURL)
+	}
+	if got := res.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	vary := strings.Join(res.Header().Values("Vary"), ",")
+	if !strings.Contains(vary, "Accept") || !strings.Contains(vary, "Authorization") {
+		t.Fatalf("Vary = %q, want Accept and Authorization", vary)
+	}
+	if nextCalls != 0 {
+		t.Fatalf("next handler called %d times, want 0", nextCalls)
+	}
+}
+
+func TestRedirectBrowserToMCPDocumentationPreservesMachineRequests(t *testing.T) {
+	tests := []struct {
+		name          string
+		method        string
+		path          string
+		accept        string
+		authorization string
+	}{
+		{name: "MCP POST", method: http.MethodPost, path: "/", accept: "application/json, text/event-stream"},
+		{name: "MCP SSE GET", method: http.MethodGet, path: "/", accept: "text/event-stream"},
+		{name: "legacy MCP path", method: http.MethodGet, path: "/mcp", accept: "text/html"},
+		{name: "authenticated browser GET", method: http.MethodGet, path: "/", accept: "text/html", authorization: "Bearer token"},
+		{name: "generic client", method: http.MethodGet, path: "/", accept: "*/*"},
+		{name: "HTML explicitly rejected", method: http.MethodGet, path: "/", accept: "text/html;q=0, text/event-stream"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := redirectBrowserToMCPDocumentation(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="https://mcp.test/.well-known/oauth-protected-resource"`)
+				w.WriteHeader(http.StatusUnauthorized)
+			}))
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			req.Header.Set("Accept", tt.accept)
+			if tt.authorization != "" {
+				req.Header.Set("Authorization", tt.authorization)
+			}
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			if res.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+			}
+			if got := res.Header().Get("WWW-Authenticate"); got == "" {
+				t.Fatal("WWW-Authenticate challenge was not preserved")
+			}
+		})
+	}
+}
+
 func TestOpenAIAppsChallenge(t *testing.T) {
 	res := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/openai-apps-challenge", nil)
