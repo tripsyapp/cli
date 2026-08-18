@@ -131,7 +131,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 		verifier := mcpserver.BearerTokenVerifier(info.APIBase)
 		authOptions := &auth.RequireBearerTokenOptions{}
 		if oauthConfig.enabled() {
-			verifier = mcpserver.OAuthBearerTokenVerifier(oauthConfig.userinfoURL())
+			verifier = mcpserver.HostedTokenVerifier(info.APIBase, oauthConfig.userinfoURL())
 			authOptions.ResourceMetadataURL = oauthConfig.resourceMetadataURL()
 		}
 		httpHandler = auth.RequireBearerToken(verifier, authOptions)(httpHandler)

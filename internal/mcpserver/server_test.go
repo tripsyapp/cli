@@ -835,6 +835,95 @@ func TestOAuthBearerTokenVerifierValidatesUserinfo(t *testing.T) {
 	}
 }
 
+func TestHostedTokenVerifierPrefersOAuthAccessToken(t *testing.T) {
+	var apiCalls atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		apiCalls.Add(1)
+		http.Error(w, "unexpected Tripsy token validation", http.StatusInternalServerError)
+	}))
+	defer apiServer.Close()
+
+	userinfoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer oauth-token" {
+			t.Errorf("Authorization = %q, want Bearer oauth-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sub":"oauth-user"}`))
+	}))
+	defer userinfoServer.Close()
+
+	info, err := HostedTokenVerifier(apiServer.URL, userinfoServer.URL)(testContext(t), "oauth-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+	if err != nil {
+		t.Fatalf("HostedTokenVerifier() failed: %v", err)
+	}
+	if got := info.Extra[tokenInfoAuthSchemeKey]; got != "Bearer" {
+		t.Fatalf("auth scheme = %v, want Bearer", got)
+	}
+	if got := apiCalls.Load(); got != 0 {
+		t.Fatalf("Tripsy API called %d times, want 0", got)
+	}
+}
+
+func TestHostedTokenVerifierFallsBackToTripsyToken(t *testing.T) {
+	var userinfoCalls atomic.Int32
+	userinfoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		userinfoCalls.Add(1)
+		http.Error(w, "invalid OAuth token", http.StatusUnauthorized)
+	}))
+	defer userinfoServer.Close()
+
+	var apiCalls atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCalls.Add(1)
+		if got := r.Header.Get("Authorization"); got != "Token tripsy-token" {
+			t.Errorf("Authorization = %q, want Token tripsy-token", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":42}`))
+	}))
+	defer apiServer.Close()
+
+	verifier := HostedTokenVerifier(apiServer.URL, userinfoServer.URL)
+	for range 2 {
+		info, err := verifier(testContext(t), "tripsy-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+		if err != nil {
+			t.Fatalf("HostedTokenVerifier() failed: %v", err)
+		}
+		if got := info.Extra[tokenInfoAuthSchemeKey]; got != "Token" {
+			t.Fatalf("auth scheme = %v, want Token", got)
+		}
+	}
+	if got := userinfoCalls.Load(); got != 1 {
+		t.Fatalf("userinfo called %d times, want 1", got)
+	}
+	if got := apiCalls.Load(); got != 1 {
+		t.Fatalf("Tripsy API called %d times, want 1", got)
+	}
+}
+
+func TestHostedTokenVerifierDoesNotFallbackAfterOAuthServerError(t *testing.T) {
+	userinfoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upstream unavailable", http.StatusInternalServerError)
+	}))
+	defer userinfoServer.Close()
+
+	var apiCalls atomic.Int32
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		apiCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":42}`))
+	}))
+	defer apiServer.Close()
+
+	_, err := HostedTokenVerifier(apiServer.URL, userinfoServer.URL)(testContext(t), "token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+	if err == nil {
+		t.Fatal("HostedTokenVerifier() succeeded, want userinfo error")
+	}
+	if got := apiCalls.Load(); got != 0 {
+		t.Fatalf("Tripsy API called %d times, want 0", got)
+	}
+}
+
 func TestBearerTokenVerifierCachesRepeatedTokens(t *testing.T) {
 	var calls atomic.Int32
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
