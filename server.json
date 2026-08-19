@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.tripsyapp/tripsy",
+  "title": "Tripsy",
+  "description": "Plan trips and manage itineraries, stays, transport, activities, expenses, and documents in Tripsy.",
+  "version": "1.7.1",
+  "websiteUrl": "https://tripsy.help/article/97-ai-tools",
+  "repository": {
+    "url": "https://github.com/tripsyapp/cli",
+    "source": "github",
+    "id": "1220375872"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.tripsy.app"
+    }
+  ]
+}
