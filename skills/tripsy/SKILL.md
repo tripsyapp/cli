@@ -434,9 +434,18 @@ tripsy collaborators delete USER_ID --trip TRIP_ID --json
 
 MCP equivalents are `tripsy_collaborators_invite` with `trip_id`, `invited_user_email`, and optional typed `permissions`; `tripsy_collaborators_update` with `trip_id`, `user_id`, and typed `permissions`; and `tripsy_collaborators_delete` with `trip_id` and `user_id`. Use the guest's user ID from the collaborator list, not a favorite or invitation record ID.
 
-Permission flags require explicit `true` or `false`. Invitations use `read_only`; updates use `can_edit`. Both support `can_add_guests`, `can_see_expenses`, `can_edit_expenses`, `can_see_documents`, and `can_edit_documents`. Invitations also accept `title` and `is_travelling`; updates also accept `receive_notifications`. Omitted fields retain invitation defaults or existing update values. To update your own notification preference, send only that field; broader changes require guest-management access.
+Permission flags require explicit `true` or `false`. Invitations use `read_only`; updates use `can_edit`. Both support `is_travelling`, `can_add_guests`, `can_see_expenses`, `can_edit_expenses`, `can_see_documents`, and `can_edit_documents`. Invitations also accept `title`; updates also accept `receive_notifications`. Omitted fields retain invitation defaults or existing update values. To update your own travel status or notification preference, send only that field; broader changes require guest-management access.
 
 An invitation success response means the request was processed, not that membership was established. Confirmed favorites may be added immediately, other guests may remain pending, and unknown email addresses may return generic success without an invitation. List collaborators afterward to verify the result. Removing a guest revokes trip access and clears their itinerary assignments.
+
+Move your own trip to Following or back to travelling:
+
+```sh
+tripsy collaborators update me --trip TRIP_ID --is-travelling false --json
+tripsy collaborators update me --trip TRIP_ID --is-travelling true --json
+```
+
+Through MCP, call `tripsy_collaborators_update` with `trip_id`, `user_id: "me"`, and `permissions: {"is_travelling": false}` (or `true`). `me` resolves the current authenticated user before updating permissions. Send only `is_travelling` for a self-service change, including for the trip owner. This keeps trip membership intact. Verify false with `tripsy_trips_following_list` / `tripsy trips following`; verify true with `tripsy_trips_list` / `tripsy trips list`.
 
 ## Email Addresses
 
