@@ -13,7 +13,7 @@ import (
 
 var collaboratorPermissionFields = []string{
 	"can_edit", "can_add_guests", "can_see_expenses", "can_edit_expenses",
-	"can_see_documents", "can_edit_documents", "receive_notifications",
+	"can_see_documents", "can_edit_documents", "is_travelling", "receive_notifications",
 }
 
 var invitationPermissionFields = []string{
@@ -96,7 +96,13 @@ func (a *app) collaborators(ctx context.Context, args []string) error {
 			return usageError("collaborators update requires at least one permission field")
 		}
 		userID := strings.TrimSpace(fs.positionals[0])
-
+		if userID == "me" {
+			var err error
+			userID, err = a.currentUserID(ctx)
+			if err != nil {
+				return err
+			}
+		}
 		resp, err := a.client.Request(ctx, "PATCH", "/v1/trip/"+apiPathSegment(tripID)+"/collaborator/"+apiPathSegment(userID)+"/permissions", nil, permissions)
 		if err != nil {
 			return err

@@ -2341,18 +2341,19 @@ func commandCatalog() []commandSpec {
 		{
 			Name:    "collaborators",
 			Usage:   "tripsy collaborators <list|invite|update|delete> --trip <trip-id>",
-			Summary: "List, invite, remove, and update trip guests.",
+			Summary: "List, invite, remove, and update trip guests and travel status.",
 			Examples: []string{
 				"tripsy collaborators list --trip 42",
 				"tripsy collaborators invite --trip 42 --email guest@example.com --read-only true",
 				"tripsy collaborators update 7 --trip 42 --can-edit false",
+				"tripsy collaborators update me --trip 42 --is-travelling false",
 				"tripsy collaborators delete 7 --trip 42",
 			},
 			Subcommands: []string{"list", "invite", "update", "delete"},
 			Gotchas: []string{
-				"Use user ids from collaborators, not favorite or invitation record ids.",
+				"Use user ids from collaborators, not favorite or invitation record ids. update accepts me for the current user.",
 				"Permission flags require true or false. --data and --set contain permission fields only. Invitations use read_only; updates use can_edit.",
-				"Change your own receive_notifications alone. Broader changes require guest-management permission.",
+				"Change your own is_travelling or receive_notifications one field at a time. Broader changes require guest-management permission.",
 				"guest_invites is processed only on trip creation. Use collaborators invite for existing trips; success does not guarantee a guest was added.",
 			},
 		},
@@ -2455,7 +2456,7 @@ Commands:
   transportations   Manage flights, trains, cars, and other transport
   expenses          Manage trip expenses
   categories        Manage custom activity categories
-  collaborators     Manage trip guests and permissions
+  collaborators     Manage trip guests and travel status
   emails            Manage alternative email addresses
   inbox             Review unprocessed automation emails
   documents         Attach, move, upload, and read documents

@@ -141,11 +141,28 @@ tripsy collaborators delete 7 --trip 42
 
 Collaborator lists combine all pages. The original `tripsy collaborators --trip 42` and `tripsy collaborators 42` list forms still work. Use user IDs from collaborators, not favorite or invitation record IDs.
 
-Permission flags require explicit `true` or `false`. Both invite and update accept `--data` and `--set` for permission fields only, for example `collaborators update 7 --trip 42 --data '{"can_see_expenses":false}'`. Invitations use `read_only`; updates use `can_edit`. Both support `can_add_guests`, `can_see_expenses`, `can_edit_expenses`, `can_see_documents`, and `can_edit_documents`. Invitations also accept `title` and `is_travelling`; updates also accept `receive_notifications`. Omitted permissions retain invitation defaults or existing update values. To change your own notification preference, send only that field. Broader permission changes require guest-management access; owners can change only their own notification preference through this command.
+Permission flags require explicit `true` or `false`. Both invite and update accept `--data` and `--set` for permission fields only, for example `collaborators update 7 --trip 42 --data '{"can_see_expenses":false}'`. Invitations use `read_only`; updates use `can_edit`. Both support `can_add_guests`, `can_see_expenses`, `can_edit_expenses`, `can_see_documents`, and `can_edit_documents`. Invitations also accept `title`; updates also accept `receive_notifications`; both support `is_travelling`. Omitted permissions retain invitation defaults or existing update values. To change your own travel or notification preference, send only that field. Broader permission changes require guest-management access; owners can change only their own travel or notification preference through this command.
 
 For existing trips, use `collaborators invite`; the backend processes `guest_invites` only during trip creation. Successful invitation requests do not guarantee membership: confirmed favorites may be added immediately, other guests may remain pending, and unknown addresses may receive a generic success without an invitation. Check collaborators afterward. Removal revokes trip access and clears itinerary assignments.
 
-MCP: `tripsy_collaborators_invite` takes `trip_id`, `invited_user_email`, and optional typed `permissions`; `tripsy_collaborators_update` takes `trip_id`, `user_id`, and typed `permissions`; `tripsy_collaborators_delete` takes `trip_id` and `user_id`. Requires public routing for `/v1/guests/invite`, `/v1/trip/{trip_id}/collaborator/{user_id}`, and the latter's `/permissions` endpoint (exposure tracked in TRI-2153).
+MCP: `tripsy_collaborators_invite` takes `trip_id`, `invited_user_email`, and optional typed `permissions`; `tripsy_collaborators_update` takes `trip_id`, `user_id` (or `"me"`), and typed `permissions`; `tripsy_collaborators_delete` takes `trip_id` and `user_id`. Requires public routing for `/v1/guests/invite`, `/v1/trip/{trip_id}/collaborator/{user_id}`, and the latter's `/permissions` endpoint (exposure tracked in TRI-2153).
+
+## Travel status
+
+```sh
+tripsy collaborators update me --trip 42 --is-travelling false
+tripsy trips following
+tripsy collaborators update me --trip 42 --is-travelling true
+tripsy trips list
+```
+
+`me` resolves the authenticated user through `/v1/me`; an explicit user ID also works. Send `is_travelling` alone to change your own status, including as trip owner. `false` follows the trip without travelling; `true` restores it to the travelling list. MCP uses `tripsy_collaborators_update`:
+
+```json
+{"trip_id":"42","user_id":"me","permissions":{"is_travelling":false}}
+```
+
+This updates the existing collaborator permissions endpoint, not the trip metadata endpoint. It requires public routing for `PATCH /v1/trip/{trip_id}/collaborator/{user_id}/permissions`.
 
 ## Output
 
@@ -280,7 +297,7 @@ Read-only tools:
 Write tools:
 
 - `tripsy_collaborators_invite`: invite a guest to an existing trip by email, with optional typed permissions.
-- `tripsy_collaborators_update`: update typed guest permissions by user id.
+- `tripsy_collaborators_update`: update typed guest permissions by user id or `me`, including `is_travelling`.
 - `tripsy_me_update`: update current profile fields.
 - `tripsy_trips_create`: create a trip.
 - `tripsy_trips_update`: update a trip.

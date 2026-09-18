@@ -17,8 +17,8 @@ type collaboratorInviteInput struct {
 
 type collaboratorUpdateInput struct {
 	TripID      string                   `json:"trip_id" jsonschema:"Tripsy trip id."`
-	UserID      string                   `json:"user_id" jsonschema:"Guest user id from collaborators."`
-	Permissions guests.UpdatePermissions `json:"permissions" jsonschema:"Permissions to change. At least one field is required. Omitted fields are preserved. For your own notification preference, send only that single field."`
+	UserID      string                   `json:"user_id" jsonschema:"Guest user id from collaborators, or me to resolve the authenticated user."`
+	Permissions guests.UpdatePermissions `json:"permissions" jsonschema:"Permissions to change. At least one field is required. Omitted fields are preserved. For your own travel or notification preference, send only that single field."`
 }
 
 type collaboratorDeleteInput struct {
@@ -45,7 +45,20 @@ func (s *service) collaboratorUpdate(ctx context.Context, req *mcp.CallToolReque
 		return nil, nil, fmt.Errorf("permissions must contain at least one field")
 	}
 	userID := strings.TrimSpace(in.UserID)
-
+	if userID == "me" {
+		client := s.clientForRequest(req)
+		if err := requireToken(client); err != nil {
+			return nil, nil, err
+		}
+		resp, err := client.Request(ctx, "GET", "/v1/me", nil, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		userID = valueString(resp.Data, "id")
+		if userID == "" {
+			return nil, nil, fmt.Errorf("current user response did not include id")
+		}
+	}
 	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trip/"+apiPathSegment(in.TripID)+"/collaborator/"+apiPathSegment(userID)+"/permissions", nil, in.Permissions, "Collaborator permissions updated"))
 }
 
