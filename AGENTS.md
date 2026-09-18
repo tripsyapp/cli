@@ -20,6 +20,8 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 
 - Set trip dates when planning a day-by-day itinerary.
 - `trips list` returns trips where the authenticated user is travelling. Use `trips following` for trips the user follows but is not travelling on.
+- Manage existing trip guests with `tripsy_collaborators_invite`, `tripsy_collaborators_update`, and `tripsy_collaborators_delete`, or the matching `tripsy collaborators` subcommands. `guest_invites` is only processed during trip creation. Invitation success does not guarantee membership; check collaborators afterward. Removing a collaborator revokes access and clears itinerary assignments.
+- To change the current user's travel status, use `tripsy_collaborators_update` with `user_id: "me"` and `permissions: {"is_travelling": false}` (or `true`), or `tripsy collaborators update me --trip TRIP_ID --is-travelling false`. Send this preference alone.
 - List account favorite guests through `tripsy_guests_favorites_list` or `tripsy guests favorites`. Preserve `pending` status; `favorite_user.id` is the user id, while the top-level id is a favorite or invitation record id.
 - `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - Choose a destination-specific Unsplash image for leisure trips and set it as `cover_image_url`.

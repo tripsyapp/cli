@@ -1599,32 +1599,6 @@ func positionalID(fs *flagSet, message string) (string, error) {
 	return fs.positionals[0], nil
 }
 
-func (a *app) collaborators(ctx context.Context, args []string) error {
-	if err := requireToken(a.client); err != nil {
-		return err
-	}
-	fs, err := parseFlags(args)
-	if err != nil {
-		return err
-	}
-	tripID := fs.TripID()
-	if tripID == "" && len(fs.positionals) > 0 {
-		tripID = fs.positionals[0]
-	}
-	if tripID == "" {
-		return usageError("collaborators requires --trip")
-	}
-	resp, err := a.client.Request(ctx, "GET", "/v1/trip/"+apiPathSegment(tripID)+"/collaborators", nil, nil)
-	if err != nil {
-		return err
-	}
-	return a.render(output.Result{
-		Data:    resp.Data,
-		Summary: fmt.Sprintf("%d collaborators", len(results(resp.Data))),
-		Human:   formatObjects("Collaborators", resp.Data, "id", "name", "email", "joined"),
-	})
-}
-
 func (a *app) emails(ctx context.Context, args []string) error {
 	if err := requireToken(a.client); err != nil {
 		return err
@@ -2367,11 +2341,23 @@ func commandCatalog() []commandSpec {
 			Gotchas: []string{"Custom category slugs can be used as activity_type values on activity endpoints."},
 		},
 		{
-			Name:        "collaborators",
-			Usage:       "tripsy collaborators --trip <trip-id>",
-			Summary:     "List collaborators and pending invitations for a trip.",
-			Examples:    []string{"tripsy collaborators --trip 42"},
-			Subcommands: []string{"list"},
+			Name:    "collaborators",
+			Usage:   "tripsy collaborators <list|invite|update|delete> --trip <trip-id>",
+			Summary: "List, invite, remove, and update trip guests and travel status.",
+			Examples: []string{
+				"tripsy collaborators list --trip 42",
+				"tripsy collaborators invite --trip 42 --email guest@example.com --read-only true",
+				"tripsy collaborators update 7 --trip 42 --can-edit false",
+				"tripsy collaborators update me --trip 42 --is-travelling false",
+				"tripsy collaborators delete 7 --trip 42",
+			},
+			Subcommands: []string{"list", "invite", "update", "delete"},
+			Gotchas: []string{
+				"Use user ids from collaborators, not favorite or invitation record ids. update accepts me for the current user.",
+				"Permission flags require true or false. --data and --set contain permission fields only. Invitations use read_only; updates use can_edit.",
+				"Change your own is_travelling or receive_notifications one field at a time. Broader changes require guest-management permission.",
+				"guest_invites is processed only on trip creation. Use collaborators invite for existing trips; success does not guarantee a guest was added.",
+			},
 		},
 		{
 			Name:        "guests",
@@ -2480,7 +2466,7 @@ Commands:
   transportations   Manage flights, trains, cars, and other transport
   expenses          Manage trip expenses
   categories        Manage custom activity categories
-  collaborators     List trip collaborators
+  collaborators     Manage trip guests and travel status
   guests            List favorite guests and pending invitations
   emails            Manage alternative email addresses
   inbox             Review unprocessed automation emails
