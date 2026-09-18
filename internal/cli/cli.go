@@ -150,6 +150,8 @@ func (a *app) execute(ctx context.Context) error {
 		return a.categories(ctx, a.args[1:])
 	case "collaborators":
 		return a.collaborators(ctx, a.args[1:])
+	case "guests":
+		return a.guests(ctx, a.args[1:])
 	case "emails", "email":
 		return a.emails(ctx, a.args[1:])
 	case "inbox":
@@ -2372,6 +2374,14 @@ func commandCatalog() []commandSpec {
 			Subcommands: []string{"list"},
 		},
 		{
+			Name:        "guests",
+			Usage:       "tripsy guests favorites [list]",
+			Summary:     "List account favorite guests and pending outgoing favorite invitations.",
+			Subcommands: []string{"favorites"},
+			Examples:    []string{"tripsy guests favorites"},
+			Gotchas:     []string{"pending distinguishes invitations from confirmed favorites. favorite_user.id is the user id; the top-level id is a favorite or invitation record id."},
+		},
+		{
 			Name:        "emails",
 			Usage:       "tripsy emails <list|add|delete>",
 			Summary:     "Manage alternative email addresses.",
@@ -2471,6 +2481,7 @@ Commands:
   expenses          Manage trip expenses
   categories        Manage custom activity categories
   collaborators     List trip collaborators
+  guests            List favorite guests and pending invitations
   emails            Manage alternative email addresses
   inbox             Review unprocessed automation emails
   documents         Attach, move, upload, and read documents

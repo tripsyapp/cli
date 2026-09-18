@@ -101,6 +101,7 @@ Run `tripsy commands` for the current command catalog, or `tripsy commands --jso
 | `tripsy expenses` | Manage trip expenses. | `list`, `show`, `create`, `update`, `delete` |
 | `tripsy categories` | Manage custom activity categories. | `list`, `show`, `create`, `update`, `replace`, `delete` |
 | `tripsy collaborators` | List collaborators and pending invitations for a trip. | `list` |
+| `tripsy guests` | List account favorite guests and pending invitations. | `favorites` |
 | `tripsy emails` | Manage alternative email addresses. | `list`, `add`, `delete` |
 | `tripsy inbox` | Review automation emails that still need manual handling. | `list`, `show`, `update`, `delete` |
 | `tripsy documents` | Get download URLs, move documents, attach links, upload files, and delete documents. | `get`, `update`, `attach`, `upload`, `delete` |
@@ -129,6 +130,16 @@ tripsy doctor --verbose
 ```
 
 Most trip subresource commands require `--trip <trip-id>` because the public API scopes those resources under a trip.
+
+## Favorite guests
+
+```sh
+tripsy guests favorites
+```
+
+Lists all pages of account favorite guests and pending outgoing favorite invitations. Human output includes the user ID, name, email, and confirmed/pending status. JSON preserves the API response: `pending` distinguishes invitations from confirmed favorites, `favorite_user.id` is the user ID, and the top-level `id` is a favorite or invitation record ID.
+
+MCP: `tripsy_guests_favorites_list` takes no arguments and returns the same records. Requires public routing for `GET /v1/guests/favorites`.
 
 ## Output
 
@@ -259,6 +270,8 @@ Read-only tools:
 - `tripsy_categories_list`: list visible custom activity categories.
 - `tripsy_categories_show`: fetch one visible custom activity category by id.
 - `tripsy_collaborators_list`: list collaborators and pending invitations for a trip.
+
+- `tripsy_guests_favorites_list`: list all account favorite guests and pending outgoing favorite invitations.
 
 Write tools:
 

@@ -183,6 +183,7 @@ func (s *service) register(server *mcp.Server) {
 	})
 
 	addTool(server, toolName("tripsy", "collaborators", "list"), "List Trip Collaborators", "List collaborators and pending invitations for a trip.", readOnly(), s.collaboratorsList)
+	addTool(server, toolName("tripsy", "guests", "favorites", "list"), "List Favorite Guests", "List all account favorite guests and pending outgoing favorite invitations. Preserve pending status and use favorite_user.id when a user id is needed; the top-level id identifies the favorite or invitation record.", readOnly(), s.favoriteGuestsList)
 }
 
 func toolName(parts ...string) string {
