@@ -68,6 +68,9 @@ tripsy_hostings_create
 tripsy_transportations_create
 tripsy_expenses_create
 tripsy_collaborators_list
+tripsy_collaborators_invite
+tripsy_collaborators_update
+tripsy_collaborators_delete
 tripsy_raw_request
 ```
 
@@ -240,7 +243,7 @@ Delete a trip:
 tripsy trips delete TRIP_ID --json
 ```
 
-Common trip fields: `name`, `timezone`, `hidden`, `description`, `starts_at`, `ends_at`, `cover_gradient`, `cover_image_url`, `has_dates`, `number_of_days`, and `guest_invites`.
+Common trip fields: `name`, `timezone`, `hidden`, `description`, `starts_at`, `ends_at`, `cover_gradient`, `cover_image_url`, `has_dates`, `number_of_days`, and `guest_invites`. The API processes `guest_invites` only during trip creation; use `tripsy_collaborators_invite` or `tripsy collaborators invite` to invite guests to an existing trip.
 
 Trip ownership and dates:
 
@@ -416,9 +419,24 @@ List collaborators and pending invitations:
 
 ```sh
 tripsy collaborators --trip TRIP_ID --json
+tripsy collaborators list --trip TRIP_ID --json
 ```
 
 Inspect `permissions` in the returned data before assuming a user can edit expenses or restricted resources.
+
+Manage guests on an existing trip:
+
+```sh
+tripsy collaborators invite --trip TRIP_ID --email guest@example.com --read-only true --json
+tripsy collaborators update USER_ID --trip TRIP_ID --can-edit false --json
+tripsy collaborators delete USER_ID --trip TRIP_ID --json
+```
+
+MCP equivalents are `tripsy_collaborators_invite` with `trip_id`, `invited_user_email`, and optional typed `permissions`; `tripsy_collaborators_update` with `trip_id`, `user_id`, and typed `permissions`; and `tripsy_collaborators_delete` with `trip_id` and `user_id`. Use the guest's user ID from the collaborator list, not a favorite or invitation record ID.
+
+Permission flags require explicit `true` or `false`. Invitations use `read_only`; updates use `can_edit`. Both support `can_add_guests`, `can_see_expenses`, `can_edit_expenses`, `can_see_documents`, and `can_edit_documents`. Invitations also accept `title` and `is_travelling`; updates also accept `receive_notifications`. Omitted fields retain invitation defaults or existing update values. To update your own notification preference, send only that field; broader changes require guest-management access.
+
+An invitation success response means the request was processed, not that membership was established. Confirmed favorites may be added immediately, other guests may remain pending, and unknown email addresses may return generic success without an invitation. List collaborators afterward to verify the result. Removing a guest revokes trip access and clears their itinerary assignments.
 
 ## Email Addresses
 
