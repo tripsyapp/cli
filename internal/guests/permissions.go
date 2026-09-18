@@ -9,6 +9,7 @@ type UpdatePermissions struct {
 	CanEditExpenses      *bool `json:"can_edit_expenses,omitempty" jsonschema:"Allow editing expenses."`
 	CanSeeDocuments      *bool `json:"can_see_documents,omitempty" jsonschema:"Allow viewing documents."`
 	CanEditDocuments     *bool `json:"can_edit_documents,omitempty" jsonschema:"Allow editing documents."`
+	IsTravelling         *bool `json:"is_travelling,omitempty" jsonschema:"True for travelling; false for following. Send this field alone when changing your own travel status."`
 	ReceiveNotifications *bool `json:"receive_notifications,omitempty" jsonschema:"Receive trip notifications. Send this field alone when changing your own notification preference."`
 }
 
