@@ -183,6 +183,9 @@ func (s *service) register(server *mcp.Server) {
 	})
 
 	addTool(server, toolName("tripsy", "collaborators", "list"), "List Trip Collaborators", "List collaborators and pending invitations for a trip.", readOnly(), s.collaboratorsList)
+	addTool(server, toolName("tripsy", "collaborators", "invite"), "Invite Trip Guest", "Invite a guest to an existing trip by email. Requires permission to add guests. Confirmed favorites may be added directly. The API can return success without adding a guest; check collaborators afterward. Use this tool for existing trips; guest_invites is only processed during trip creation.", additive(), s.collaboratorInvite)
+	addTool(server, toolName("tripsy", "collaborators", "update"), "Update Trip Guest Permissions", "Update a guest's trip permissions. Users can change their own notification preference one field at a time; broader changes require guest-management permission. Owners can only change their own notification preference.", idempotentWrite(), s.collaboratorUpdate)
+	addTool(server, toolName("tripsy", "collaborators", "delete"), "Remove Trip Guest", "Remove a guest from a trip, revoking their access and clearing their activity, lodging, and transportation assignments. Use the user id from collaborators. This may also revoke pending invitations for that user.", destructive(), s.collaboratorDelete)
 }
 
 func toolName(parts ...string) string {
