@@ -62,6 +62,7 @@ Common tool names:
 ```text
 tripsy_status
 tripsy_itinerary_guidance
+tripsy_guests_favorites_list
 tripsy_trips_create
 tripsy_activities_create
 tripsy_hostings_create
@@ -446,6 +447,16 @@ tripsy collaborators update me --trip TRIP_ID --is-travelling true --json
 ```
 
 Through MCP, call `tripsy_collaborators_update` with `trip_id`, `user_id: "me"`, and `permissions: {"is_travelling": false}` (or `true`). `me` resolves the current authenticated user before updating permissions. Send only `is_travelling` for a self-service change, including for the trip owner. This keeps trip membership intact. Verify false with `tripsy_trips_following_list` / `tripsy trips following`; verify true with `tripsy_trips_list` / `tripsy trips list`.
+
+## Favorite Guests
+
+List the account's confirmed favorite guests and pending outgoing favorite invitations:
+
+```sh
+tripsy guests favorites --json
+```
+
+Use `tripsy_guests_favorites_list` through MCP. The CLI and MCP combine all pages. `pending` distinguishes outgoing invitations from confirmed favorites; this list does not establish membership in any trip. The top-level `id` identifies a favorite or invitation record, while `favorite_user.id` identifies the user.
 
 ## Email Addresses
 
