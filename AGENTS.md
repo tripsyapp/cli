@@ -20,6 +20,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 
 - Set trip dates when planning a day-by-day itinerary.
 - `trips list` returns trips where the authenticated user is travelling. Use `trips following` for trips the user follows but is not travelling on.
+- List account favorite guests through `tripsy_guests_favorites_list` or `tripsy guests favorites`. Preserve `pending` status; `favorite_user.id` is the user id, while the top-level id is a favorite or invitation record id.
 - `has_dates` is authoritative. If `has_dates` is `false`, ignore `starts_at` and `ends_at` even when those fields are present.
 - Choose a destination-specific Unsplash image for leisure trips and set it as `cover_image_url`.
 - Store a real direct Unsplash CDN URL copied from an image result, in the form `https://images.unsplash.com/photo-1562869929-bda0650edb1f?ixid=...&ixlib=rb-4.1.0`.
