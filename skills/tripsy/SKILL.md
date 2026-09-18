@@ -62,6 +62,7 @@ Common tool names:
 ```text
 tripsy_status
 tripsy_itinerary_guidance
+tripsy_guests_favorites_list
 tripsy_trips_create
 tripsy_activities_create
 tripsy_hostings_create
@@ -419,6 +420,16 @@ tripsy collaborators --trip TRIP_ID --json
 ```
 
 Inspect `permissions` in the returned data before assuming a user can edit expenses or restricted resources.
+
+## Favorite Guests
+
+List the account's confirmed favorite guests and pending outgoing favorite invitations:
+
+```sh
+tripsy guests favorites --json
+```
+
+Use `tripsy_guests_favorites_list` through MCP. The CLI and MCP combine all pages. `pending` distinguishes outgoing invitations from confirmed favorites; this list does not establish membership in any trip. The top-level `id` identifies a favorite or invitation record, while `favorite_user.id` identifies the user.
 
 ## Email Addresses
 
