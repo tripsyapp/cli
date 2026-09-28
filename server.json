@@ -3,7 +3,7 @@
   "name": "io.github.tripsyapp/tripsy",
   "title": "Tripsy",
   "description": "Plan trips and manage itineraries, stays, transport, activities, expenses, and documents in Tripsy.",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "websiteUrl": "https://tripsy.help/article/97-ai-tools",
   "repository": {
     "url": "https://github.com/tripsyapp/cli",

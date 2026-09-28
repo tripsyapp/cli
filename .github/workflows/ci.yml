@@ -25,6 +25,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Lint workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
       - name: Format check
         run: make fmt-check
 
@@ -39,3 +42,17 @@ jobs:
 
       - name: Build
         run: make build
+
+  registry:
+    name: Validate MCP Registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        uses: ./.github/actions/setup-mcp-publisher
+
+      - name: Validate registry manifest
+        run: mcp-publisher validate
