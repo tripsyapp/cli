@@ -73,7 +73,7 @@ jobs:
             fi
           done
 
-          (cd dist && shasum -a 256 *.tar.gz *.zip > checksums.txt)
+          (cd dist && shasum -a 256 -- *.tar.gz *.zip > checksums.txt)
 
       - name: Create GitHub release
         env:
