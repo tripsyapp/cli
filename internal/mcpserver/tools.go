@@ -767,7 +767,7 @@ func (s *service) collaboratorsList(ctx context.Context, req *mcp.CallToolReques
 	if strings.TrimSpace(in.TripID) == "" {
 		return nil, nil, fmt.Errorf("trip_id is required")
 	}
-	return toolOutput(s.do(ctx, req, "GET", "/v1/trip/"+apiPathSegment(in.TripID)+"/collaborators", nil, nil, "Collaborators"))
+	return toolOutput(s.doAllPages(ctx, req, "GET", "/v1/trip/"+apiPathSegment(in.TripID)+"/collaborators", nil, nil, "Collaborators"))
 }
 
 func apiPathSegment(value string) string {
