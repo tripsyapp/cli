@@ -148,6 +148,22 @@ func (c *Client) RequestAllPages(ctx context.Context, method, path string, query
 		}
 		visited[next] = true
 
+		target, err := c.url(next, nil)
+		if err != nil {
+			return nil, err
+		}
+		pageURL, err := url.Parse(target)
+		if err != nil {
+			return nil, err
+		}
+		baseURL, err := url.Parse(c.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		if pageURL.Scheme != baseURL.Scheme || !strings.EqualFold(pageURL.Host, baseURL.Host) || pageURL.User != nil {
+			return nil, fmt.Errorf("pagination URL must use the configured Tripsy API origin")
+		}
+
 		pageResp, err := c.Request(ctx, method, next, nil, nil)
 		if err != nil {
 			return pageResp, err

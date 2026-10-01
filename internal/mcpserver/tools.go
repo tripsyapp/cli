@@ -340,6 +340,9 @@ func allowRawRequestPath(method, apiPath string) error {
 	if cleaned == "/v1/automation/emails" || strings.HasPrefix(cleaned, "/v1/automation/emails/") {
 		return fmt.Errorf("inbox endpoints must use the dedicated tripsy_inbox_list, tripsy_inbox_show, tripsy_inbox_update, or tripsy_inbox_delete tools")
 	}
+	if strings.HasPrefix(cleaned, "/v2/trip/") && strings.Contains(cleaned, "/emails") {
+		return fmt.Errorf("attached email endpoints must use tripsy_emails_list or tripsy_emails_show")
+	}
 	blocked := map[string]string{
 		"/v1/emails":          "email",
 		"/v1/documents":       "document",

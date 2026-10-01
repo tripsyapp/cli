@@ -122,3 +122,20 @@ func jsonResponse(status int, body any) *http.Response {
 		Body:       io.NopCloser(strings.NewReader(string(encoded))),
 	}
 }
+
+func TestPaginationRejectsForeignOriginBeforeSendingToken(t *testing.T) {
+	for _, target := range []string{"https://foreign.test/page", "http://api.test/page", "https://user@api.test/page", "https://api.test:8443/page"} {
+		client := NewClient("https://api.test", "secret-token")
+		calls := 0
+		client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			calls++
+			return jsonResponse(http.StatusOK, map[string]any{"results": []any{}, "next": target}), nil
+		})}
+		if _, err := client.RequestAllPages(context.Background(), "GET", "/v2/trips", nil, nil); err == nil {
+			t.Fatalf("allowed foreign pagination URL %s", target)
+		}
+		if calls != 1 {
+			t.Fatalf("sent credentials to pagination URL %s", target)
+		}
+	}
+}
