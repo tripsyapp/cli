@@ -350,11 +350,11 @@ func allowRawRequestPath(method, apiPath string) error {
 	}
 	for prefix, name := range blocked {
 		if cleaned == prefix || strings.HasPrefix(cleaned, prefix+"/") {
-			return fmt.Errorf("%s endpoints are not exposed by the Tripsy MCP server yet", name)
+			return fmt.Errorf("%s endpoints must use dedicated typed tools", name)
 		}
 	}
 	if strings.Contains(cleaned, "/documents") {
-		return fmt.Errorf("document endpoints are not exposed by the Tripsy MCP server yet")
+		return fmt.Errorf("document endpoints must use the dedicated tripsy_documents tools")
 	}
 	if method == "POST" && isActivityCollectionPath(cleaned) {
 		return fmt.Errorf("activity creates must use tripsy_activities_create so required latitude and longitude validation is applied")

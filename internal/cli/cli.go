@@ -1881,10 +1881,11 @@ func (a *app) uploadDocument(ctx context.Context, args []string) error {
 
 	title := firstNonEmpty(fs.String("title"), filename)
 	attachPayload := map[string]any{
-		"url":         uploadInfo["object_key"],
-		"file_type":   contentType,
-		"title":       title,
-		"description": fs.String("description"),
+		"url":          uploadInfo["object_key"],
+		"upload_token": uploadInfo["upload_token"],
+		"file_type":    contentType,
+		"title":        title,
+		"description":  fs.String("description"),
 	}
 	attachResp, err := a.client.Request(ctx, "POST", documentAttachPath(tripID, parentType, parentID), nil, attachPayload)
 	if err != nil {
@@ -2071,7 +2072,6 @@ var meFields = []string{
 	"calendar_hidden_categories",
 	"calendar_lodgings_all_day",
 	"calendar_trips_all_day",
-	"is_premium",
 	"timezone",
 	"default_currency",
 	"store_currency",
@@ -2272,6 +2272,7 @@ var customCategoryDetailFields = append([]string{
 
 var documentFields = []string{
 	"url",
+	"upload_token",
 	"thumb_url",
 	"favicon_url",
 	"file_type",

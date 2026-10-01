@@ -40,25 +40,10 @@ func (s *service) inboxUpdate(ctx context.Context, req *mcp.CallToolRequest, in 
 	if in.Subject != nil {
 		payload["subject"] = *in.Subject
 	}
-	targets := 0
-	for field, value := range map[string]*string{
-		"trip_id":           in.TripID,
-		"activity_id":       in.ActivityID,
-		"hosting_id":        in.HostingID,
-		"transportation_id": in.TransportationID,
-	} {
-		if value == nil {
-			continue
-		}
-		id := strings.TrimSpace(*value)
-		if id == "" {
-			return nil, nil, fmt.Errorf("%s must not be empty", field)
-		}
-		targets++
-		payload[field] = id
-	}
-	if targets > 1 {
-		return nil, nil, fmt.Errorf("supply only one move target: trip_id, activity_id, hosting_id, or transportation_id")
+	if err := addMoveTargets(payload, map[string]*string{
+		"trip_id": in.TripID, "activity_id": in.ActivityID, "hosting_id": in.HostingID, "transportation_id": in.TransportationID,
+	}); err != nil {
+		return nil, nil, err
 	}
 	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("subject or one move target is required")

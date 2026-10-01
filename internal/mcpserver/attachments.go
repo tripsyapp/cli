@@ -43,3 +43,22 @@ func attachmentPath(in attachmentParentInput, version, resource string) (string,
 	}
 	return path + "/" + resource, nil
 }
+
+func addMoveTargets(payload map[string]any, targets map[string]*string) error {
+	count := 0
+	for field, value := range targets {
+		if value == nil {
+			continue
+		}
+		id := strings.TrimSpace(*value)
+		if id == "" {
+			return fmt.Errorf("%s must not be empty", field)
+		}
+		count++
+		payload[field] = id
+	}
+	if count > 1 {
+		return fmt.Errorf("supply only one move target: trip_id, activity_id, hosting_id, or transportation_id")
+	}
+	return nil
+}

@@ -41,6 +41,14 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		"tripsy_raw_request",
 		"tripsy_emails_list",
 		"tripsy_emails_show",
+		"tripsy_documents_list",
+		"tripsy_documents_show",
+		"tripsy_documents_get",
+		"tripsy_documents_attach",
+		"tripsy_documents_update",
+		"tripsy_documents_delete",
+		"tripsy_documents_upload_prepare",
+		"tripsy_documents_upload",
 		"tripsy_inbox_list",
 		"tripsy_inbox_show",
 		"tripsy_inbox_update",
@@ -52,8 +60,6 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	for _, name := range []string{
-		"tripsy_documents_attach",
-		"tripsy_documents_upload",
 		"tripsy_uploads_create",
 	} {
 		if findTool(res.Tools, name) != nil {
