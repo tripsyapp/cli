@@ -91,7 +91,7 @@ func (s *service) documentAttach(ctx context.Context, req *mcp.CallToolRequest, 
 		if err != nil || u.Host == "" || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
 			return nil, nil, fmt.Errorf("link documents require an HTTP(S) URL")
 		}
-	} else if !strings.HasPrefix(in.URL, "documents/private/") || strings.TrimSpace(in.UploadToken) == "" {
+	} else if !validDocumentObjectKey(in.URL) || strings.TrimSpace(in.UploadToken) == "" {
 		return nil, nil, fmt.Errorf("file documents require object_key and upload_token from tripsy_documents_upload_prepare")
 	}
 	payload := map[string]any{"url": in.URL, "file_type": fileType, "title": in.Title, "description": in.Description, "thumb_url": in.ThumbURL, "favicon_url": in.FaviconURL}
@@ -189,7 +189,7 @@ func (s *service) documentUpload(ctx context.Context, req *mcp.CallToolRequest, 
 	}
 	value := func(key string) string { str, _ := info[key].(string); return str }
 	key, receipt := value("object_key"), value("upload_token")
-	if !strings.HasPrefix(key, "documents/private/") || receipt == "" || value("visibility") != "private" || value("method") != "PUT" {
+	if !validDocumentObjectKey(key) || receipt == "" || value("visibility") != "private" || value("method") != "PUT" {
 		return nil, nil, fmt.Errorf("API did not return a private document upload receipt")
 	}
 	headers := map[string]string{}
@@ -212,4 +212,8 @@ func (s *service) documentUpload(ctx context.Context, req *mcp.CallToolRequest, 
 		return &mcp.CallToolResult{IsError: true}, map[string]any{"summary": "File uploaded but attachment failed", "data": recovery}, nil
 	}
 	return result, output, nil
+}
+
+func validDocumentObjectKey(key string) bool {
+	return strings.TrimSpace(key) != "" && !strings.HasPrefix(key, "/") && !strings.Contains(key, "://") && !strings.ContainsAny(key, "\\\r\n\t")
 }

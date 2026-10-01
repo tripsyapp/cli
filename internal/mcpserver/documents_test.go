@@ -205,83 +205,86 @@ type documentRoundTripper func(*http.Request) (*http.Response, error)
 func (f documentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestInlineDocumentUploadUsesS3WithoutCredentialsAndOnlyAttachesAfterSuccess(t *testing.T) {
-	for _, statuses := range [][2]int{{200, 200}, {403, 200}, {200, 403}} {
-		uploadStatus, attachStatus := statuses[0], statuses[1]
-		t.Run(fmt.Sprint(statuses), func(t *testing.T) {
-			calls := []string{}
-			apiClient := api.NewClient("https://api.test", "test-token")
-			apiClient.HTTPClient = &http.Client{Transport: documentRoundTripper(func(r *http.Request) (*http.Response, error) {
-				calls = append(calls, r.Method+" "+r.URL.Host+r.URL.Path)
-				code, body := 200, `{}`
-				if r.URL.Host == "private-docs.s3.amazonaws.com" {
-					if r.Header.Get("Authorization") != "" {
-						t.Error("Tripsy credentials sent to S3")
-					}
-					data, _ := io.ReadAll(r.Body)
-					if string(data) != "ticket" || r.ContentLength != 6 || r.Method != "PUT" {
-						t.Errorf("incorrect uploaded bytes: %q length %d", data, r.ContentLength)
-					}
-					code = uploadStatus
-				} else {
-					if r.Header.Get("Authorization") != "Token test-token" {
-						t.Error("API auth missing")
-					}
-					if r.URL.Path == "/v1/storage/uploads" {
-						body = `{"upload_url":"https://private-docs.s3.amazonaws.com/documents/private/a.pdf?X-Amz-Signature=test","bucket":"private-docs","visibility":"private","method":"PUT","object_key":"documents/private/a.pdf","upload_token":"receipt","headers":{"Content-Type":"application/pdf","Content-Length":"6"}}`
-					} else if r.URL.Path == "/v1/trip/12/documents" {
-						var payload map[string]any
-						_ = json.NewDecoder(r.Body).Decode(&payload)
-						if payload["upload_token"] != "receipt" || payload["url"] != "documents/private/a.pdf" || payload["title"] != "ticket.pdf" {
-							t.Errorf("bad finalization %v", payload)
+	for _, objectKey := range []string{"documents/private/a.pdf", "custom/private/a.pdf"} {
+		for _, statuses := range [][2]int{{200, 200}, {403, 200}, {200, 403}} {
+			uploadStatus, attachStatus := statuses[0], statuses[1]
+			t.Run(fmt.Sprint(statuses)+"/"+objectKey, func(t *testing.T) {
+				calls := []string{}
+				apiClient := api.NewClient("https://api.test", "test-token")
+				apiClient.HTTPClient = &http.Client{Transport: documentRoundTripper(func(r *http.Request) (*http.Response, error) {
+					calls = append(calls, r.Method+" "+r.URL.Host+r.URL.Path)
+					code, body := 200, `{}`
+					if r.URL.Host == "private-docs.s3.amazonaws.com" {
+						if r.Header.Get("Authorization") != "" {
+							t.Error("Tripsy credentials sent to S3")
 						}
-						code, body = attachStatus, `{"id":56}`
+						data, _ := io.ReadAll(r.Body)
+						if string(data) != "ticket" || r.ContentLength != 6 || r.Method != "PUT" {
+							t.Errorf("incorrect uploaded bytes: %q length %d", data, r.ContentLength)
+						}
+						code = uploadStatus
 					} else {
-						t.Errorf("unexpected API path %s", r.URL)
+						if r.Header.Get("Authorization") != "Token test-token" {
+							t.Error("API auth missing")
+						}
+						if r.URL.Path == "/v1/storage/uploads" {
+							body = `{"upload_url":"https://private-docs.s3.amazonaws.com/documents/private/a.pdf?X-Amz-Signature=test","bucket":"private-docs","visibility":"private","method":"PUT","object_key":"documents/private/a.pdf","upload_token":"receipt","headers":{"Content-Type":"application/pdf","Content-Length":"6"}}`
+						} else if r.URL.Path == "/v1/trip/12/documents" {
+							var payload map[string]any
+							_ = json.NewDecoder(r.Body).Decode(&payload)
+							if payload["upload_token"] != "receipt" || payload["url"] != objectKey || payload["title"] != "ticket.pdf" {
+								t.Errorf("bad finalization %v", payload)
+							}
+							code, body = attachStatus, `{"id":56}`
+						} else {
+							t.Errorf("unexpected API path %s", r.URL)
+						}
 					}
-				}
-				return &http.Response{StatusCode: code, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
-			})}
-			server := NewWithClientOptions(apiClient, config.NewStore(t.TempDir()), Options{DisableRawRequest: true})
-			serverTransport, clientTransport := mcp.NewInMemoryTransports()
-			ss, err := server.Connect(testContext(t), serverTransport, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer ss.Close()
-			client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "test"}, nil)
-			session, err := client.Connect(testContext(t), clientTransport, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer session.Close()
-			res := callTool(t, session, "tripsy_documents_upload", map[string]any{"trip_id": "12", "filename": "ticket.pdf", "content_type": "application/pdf", "content_base64": "dGlja2V0"})
-			if res.IsError != (uploadStatus != 200 || attachStatus != 200) {
-				t.Fatal(toolText(res))
-			}
-			if uploadStatus == 200 && attachStatus != 200 {
-				var envelope struct {
-					Data struct {
-						Uploaded       bool                `json:"uploaded"`
-						RetryTool      string              `json:"retry_tool"`
-						RetryArguments documentAttachInput `json:"retry_arguments"`
-					} `json:"data"`
-				}
-				if err := json.Unmarshal([]byte(toolText(res)), &envelope); err != nil {
+					body = strings.ReplaceAll(body, "documents/private/a.pdf", objectKey)
+					return &http.Response{StatusCode: code, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+				})}
+				server := NewWithClientOptions(apiClient, config.NewStore(t.TempDir()), Options{DisableRawRequest: true})
+				serverTransport, clientTransport := mcp.NewInMemoryTransports()
+				ss, err := server.Connect(testContext(t), serverTransport, nil)
+				if err != nil {
 					t.Fatal(err)
 				}
-				recovery := envelope.Data
-				if !recovery.Uploaded || recovery.RetryTool != "tripsy_documents_attach" || recovery.RetryArguments.UploadToken != "receipt" || recovery.RetryArguments.URL != "documents/private/a.pdf" || recovery.RetryArguments.TripID != "12" || recovery.RetryArguments.FileType != "application/pdf" {
-					t.Fatalf("missing recovery details: %+v", recovery)
+				defer ss.Close()
+				client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+				session, err := client.Connect(testContext(t), clientTransport, nil)
+				if err != nil {
+					t.Fatal(err)
 				}
-			}
-			want := []string{"POST api.test/v1/storage/uploads", "PUT private-docs.s3.amazonaws.com/documents/private/a.pdf"}
-			if uploadStatus == 200 {
-				want = append(want, "POST api.test/v1/trip/12/documents")
-			}
-			if !reflect.DeepEqual(calls, want) {
-				t.Fatalf("calls=%v want %v", calls, want)
-			}
-		})
+				defer session.Close()
+				res := callTool(t, session, "tripsy_documents_upload", map[string]any{"trip_id": "12", "filename": "ticket.pdf", "content_type": "application/pdf", "content_base64": "dGlja2V0"})
+				if res.IsError != (uploadStatus != 200 || attachStatus != 200) {
+					t.Fatal(toolText(res))
+				}
+				if uploadStatus == 200 && attachStatus != 200 {
+					var envelope struct {
+						Data struct {
+							Uploaded       bool                `json:"uploaded"`
+							RetryTool      string              `json:"retry_tool"`
+							RetryArguments documentAttachInput `json:"retry_arguments"`
+						} `json:"data"`
+					}
+					if err := json.Unmarshal([]byte(toolText(res)), &envelope); err != nil {
+						t.Fatal(err)
+					}
+					recovery := envelope.Data
+					if !recovery.Uploaded || recovery.RetryTool != "tripsy_documents_attach" || recovery.RetryArguments.UploadToken != "receipt" || recovery.RetryArguments.URL != objectKey || recovery.RetryArguments.TripID != "12" || recovery.RetryArguments.FileType != "application/pdf" {
+						t.Fatalf("missing recovery details: %+v", recovery)
+					}
+				}
+				want := []string{"POST api.test/v1/storage/uploads", "PUT private-docs.s3.amazonaws.com/" + objectKey}
+				if uploadStatus == 200 {
+					want = append(want, "POST api.test/v1/trip/12/documents")
+				}
+				if !reflect.DeepEqual(calls, want) {
+					t.Fatalf("calls=%v want %v", calls, want)
+				}
+			})
+		}
 	}
 }
 
