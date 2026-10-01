@@ -139,3 +139,23 @@ func TestPaginationRejectsForeignOriginBeforeSendingToken(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestRejectsSubscriptionUpdatesBeforeSending(t *testing.T) {
+	client := NewClient("https://api.test", "test-token")
+	client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Fatal("subscription update reached the API")
+		return nil, nil
+	})}
+	for _, body := range []any{
+		map[string]any{"is_premium": true},
+		map[string]any{"is_premium": false, "name": "Test"},
+		map[string]any{"premium_expiration_date": nil},
+		`{"is_premium":true}`,
+		[]byte(`{"is_premium":false}`),
+		json.RawMessage(`{"\u0069s_premium":true}`),
+	} {
+		if _, err := client.Request(context.Background(), "PATCH", "/v1/me", nil, body); err == nil || !strings.Contains(err.Error(), "subscription status") {
+			t.Fatalf("body %v: error = %v, want subscription rejection", body, err)
+		}
+	}
+}

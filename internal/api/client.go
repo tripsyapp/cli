@@ -64,18 +64,27 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 
 	var reader io.Reader
 	if body != nil {
+		var encoded []byte
 		switch v := body.(type) {
 		case []byte:
-			reader = bytes.NewReader(v)
+			encoded = v
 		case string:
-			reader = strings.NewReader(v)
+			encoded = []byte(v)
 		default:
-			encoded, err := json.Marshal(v)
+			encoded, err = json.Marshal(v)
 			if err != nil {
 				return nil, err
 			}
-			reader = bytes.NewReader(encoded)
 		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(encoded, &fields) == nil {
+			for _, field := range []string{"is_premium", "premium_expiration_date"} {
+				if _, present := fields[field]; present {
+					return nil, fmt.Errorf("subscription status cannot be changed through CLI or MCP")
+				}
+			}
+		}
+		reader = bytes.NewReader(encoded)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, strings.ToUpper(method), target, reader)

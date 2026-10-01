@@ -1225,3 +1225,22 @@ func toolText(res *mcp.CallToolResult) string {
 	}
 	return ""
 }
+
+func TestMCPRejectsSubscriptionUpdatesIncludingRawRequests(t *testing.T) {
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("subscription update reached the API")
+	}))
+	defer cleanup()
+	for _, data := range []map[string]any{{"is_premium": true}, {"is_premium": false}, {"premium_expiration_date": "2099-01-01T00:00:00Z"}} {
+		for _, tool := range []string{"tripsy_me_update", "tripsy_raw_request"} {
+			args := map[string]any{"data": data}
+			if tool == "tripsy_raw_request" {
+				args["method"], args["path"] = "PATCH", "/v1/me"
+			}
+			res := callTool(t, session, tool, args)
+			if !res.IsError || !strings.Contains(toolText(res), "subscription status") {
+				t.Fatalf("%s: expected subscription rejection, got %s", tool, toolText(res))
+			}
+		}
+	}
+}
