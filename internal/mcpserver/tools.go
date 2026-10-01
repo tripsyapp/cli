@@ -337,11 +337,13 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 
 func allowRawRequestPath(method, apiPath string) error {
 	cleaned := path.Clean("/" + strings.TrimLeft(apiPath, "/"))
+	if cleaned == "/v1/automation/emails" || strings.HasPrefix(cleaned, "/v1/automation/emails/") {
+		return fmt.Errorf("inbox endpoints must use the dedicated tripsy_inbox_list, tripsy_inbox_show, tripsy_inbox_update, or tripsy_inbox_delete tools")
+	}
 	blocked := map[string]string{
-		"/v1/emails":            "email",
-		"/v1/automation/emails": "inbox",
-		"/v1/documents":         "document",
-		"/v1/storage/uploads":   "upload",
+		"/v1/emails":          "email",
+		"/v1/documents":       "document",
+		"/v1/storage/uploads": "upload",
 	}
 	for prefix, name := range blocked {
 		if cleaned == prefix || strings.HasPrefix(cleaned, prefix+"/") {

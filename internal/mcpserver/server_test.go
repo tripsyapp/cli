@@ -39,6 +39,10 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		"tripsy_trips_list",
 		"tripsy_trips_following_list",
 		"tripsy_raw_request",
+		"tripsy_inbox_list",
+		"tripsy_inbox_show",
+		"tripsy_inbox_update",
+		"tripsy_inbox_delete",
 	} {
 		if findTool(res.Tools, name) == nil {
 			t.Fatalf("tool %q was not registered", name)
@@ -47,7 +51,6 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 
 	for _, name := range []string{
 		"tripsy_emails_list",
-		"tripsy_inbox_list",
 		"tripsy_documents_attach",
 		"tripsy_documents_upload",
 		"tripsy_uploads_create",
@@ -1040,7 +1043,7 @@ func TestRawRequestRejectsExternalURL(t *testing.T) {
 	}
 }
 
-func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
+func TestRawRequestRejectsUnavailableOrTypedOnlyCapabilities(t *testing.T) {
 	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("API should not be called for withheld MCP capabilities")
 	}))
@@ -1051,7 +1054,7 @@ func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
 		want string
 	}{
 		{path: "/v1/emails", want: "email endpoints"},
-		{path: "/v1/automation/emails/123", want: "inbox endpoints"},
+		{path: "/v1/automation/emails/123", want: "dedicated tripsy_inbox_list"},
 		{path: "/v1/documents/123/get", want: "document endpoints"},
 		{path: "/v1/trip/42/activity/9/documents", want: "document endpoints"},
 		{path: "/v1/storage/uploads", want: "upload endpoints"},
