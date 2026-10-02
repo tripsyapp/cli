@@ -12,7 +12,9 @@ func NormalizeToolAnnotationsPayload(payload []byte) []byte {
 	}
 	if json.Valid(payload) {
 		if normalized, ok := normalizeToolAnnotationsJSON(payload); ok {
-			return normalized
+			// Stdio clients frame messages with newlines, which json.Marshal removes.
+			suffix := payload[len(bytes.TrimRight(payload, "\r\n")):]
+			return append(normalized, suffix...)
 		}
 		return payload
 	}
