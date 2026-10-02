@@ -47,7 +47,6 @@ func TestGuestToolsRequestContracts(t *testing.T) {
 		{"invite defaults", "tripsy_collaborators_invite", "POST", "/v1/guests/invite", `{"trip_id":"42","invited_user_email":"guest@example.com"}`, map[string]any{"trip_id": "42", "invited_user_email": "guest@example.com"}},
 		{"invite permissions", "tripsy_collaborators_invite", "POST", "/v1/guests/invite", `{"trip_id":"42","invited_user_email":"guest@example.com","permissions":{"read_only":true,"can_see_documents":false}}`, map[string]any{"trip_id": "42", "invited_user_email": "guest@example.com", "permissions": map[string]any{"read_only": true, "can_see_documents": false}}},
 		{"update explicit user", "tripsy_collaborators_update", "PATCH", "/v1/trip/42/collaborator/8/permissions", `{"can_edit":false,"can_see_expenses":true}`, map[string]any{"trip_id": "42", "user_id": "8", "permissions": map[string]any{"can_edit": false, "can_see_expenses": true}}},
-		{"delete", "tripsy_collaborators_delete", "DELETE", "/v1/trip/42/collaborator/8", "", map[string]any{"trip_id": "42", "user_id": "8"}},
 		{"escaped ids", "tripsy_collaborators_delete", "DELETE", "/v1/trip/42%2F43/collaborator/7%2F8", "", map[string]any{"trip_id": "42/43", "user_id": "7/8"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
