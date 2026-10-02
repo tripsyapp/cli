@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/tripsyapp/cli/internal/api"
 	"github.com/tripsyapp/cli/internal/coverimage"
 )
 
@@ -448,7 +448,7 @@ func (s *service) tripShow(ctx context.Context, req *mcp.CallToolRequest, in idI
 	if strings.TrimSpace(in.ID) == "" {
 		return nil, nil, fmt.Errorf("id is required")
 	}
-	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip "+in.ID))
+	return toolOutput(s.do(ctx, req, "GET", "/v1/trips/"+apiPathSegment(in.ID), api.TripDataQuery(nil), nil, "Trip "+in.ID))
 }
 
 func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in tripCreateInput) (*mcp.CallToolResult, any, error) {
@@ -459,7 +459,7 @@ func (s *service) tripCreate(ctx context.Context, req *mcp.CallToolRequest, in t
 	if err := validateCoverImageURL(payload); err != nil {
 		return nil, nil, err
 	}
-	return toolOutput(s.do(ctx, req, "POST", "/v1/trips", tripDataQuery(nil), payload, "Trip created"))
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trips", api.TripDataQuery(nil), payload, "Trip created"))
 }
 
 func (s *service) tripUpdate(ctx context.Context, req *mcp.CallToolRequest, in tripUpdateInput) (*mcp.CallToolResult, any, error) {
@@ -472,14 +472,14 @@ func (s *service) tripUpdate(ctx context.Context, req *mcp.CallToolRequest, in t
 	if err := validateCoverImageURL(in.Data); err != nil {
 		return nil, nil, err
 	}
-	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), in.Data, "Trip updated"))
+	return toolOutput(s.do(ctx, req, "PATCH", "/v1/trips/"+apiPathSegment(in.ID), api.TripDataQuery(nil), in.Data, "Trip updated"))
 }
 
 func (s *service) tripDelete(ctx context.Context, req *mcp.CallToolRequest, in idInput) (*mcp.CallToolResult, any, error) {
 	if strings.TrimSpace(in.ID) == "" {
 		return nil, nil, fmt.Errorf("id is required")
 	}
-	return toolOutput(s.do(ctx, req, "DELETE", "/v1/trips/"+apiPathSegment(in.ID), tripDataQuery(nil), nil, "Trip deleted"))
+	return toolOutput(s.do(ctx, req, "DELETE", "/v1/trips/"+apiPathSegment(in.ID), api.TripDataQuery(nil), nil, "Trip deleted"))
 }
 
 func (s *service) activityCreate(ctx context.Context, req *mcp.CallToolRequest, in activityCreateInput) (*mcp.CallToolResult, any, error) {
@@ -493,7 +493,7 @@ func (s *service) activityCreate(ctx context.Context, req *mcp.CallToolRequest, 
 	if err := requireActivityCoordinates(payload); err != nil {
 		return nil, nil, err
 	}
-	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/activities", tripDataQuery(nil), payload, "Activity created"))
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/activities", api.TripDataQuery(nil), payload, "Activity created"))
 }
 
 func (s *service) hostingCreate(ctx context.Context, req *mcp.CallToolRequest, in hostingCreateInput) (*mcp.CallToolResult, any, error) {
@@ -504,7 +504,7 @@ func (s *service) hostingCreate(ctx context.Context, req *mcp.CallToolRequest, i
 	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
-	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/hostings", tripDataQuery(nil), payload, "Hosting created"))
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/hostings", api.TripDataQuery(nil), payload, "Hosting created"))
 }
 
 func (s *service) transportationCreate(ctx context.Context, req *mcp.CallToolRequest, in transportationCreateInput) (*mcp.CallToolResult, any, error) {
@@ -515,7 +515,7 @@ func (s *service) transportationCreate(ctx context.Context, req *mcp.CallToolReq
 	if len(payload) == 0 {
 		return nil, nil, fmt.Errorf("data is required")
 	}
-	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/transportations", tripDataQuery(nil), payload, "Transportation created"))
+	return toolOutput(s.do(ctx, req, "POST", "/v1/trip/"+apiPathSegment(in.TripID)+"/transportations", api.TripDataQuery(nil), payload, "Transportation created"))
 }
 
 func tripCreatePayload(in tripCreateInput) map[string]any {
@@ -786,10 +786,7 @@ func listQuery(in listInput) url.Values {
 }
 
 func tripListQuery(in listInput) url.Values {
-	query := listQuery(in)
-	ensureFields(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
-	removeFieldsExclude(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
-	return query
+	return api.TripListQuery(listQuery(in))
 }
 
 func subresourceListQuery(in subresourceListInput) url.Values {
@@ -806,69 +803,16 @@ func addListQuery(query url.Values, fields, fieldsExclude []string, updatedSince
 		query.Set("updatedSince", updatedSince)
 	}
 	if len(fields) > 0 {
-		query.Set("fields", joinFields(fields))
+		query.Set("fields", api.JoinFields(fields))
 	}
-	addFieldsExclude(query, fieldsExclude)
+	api.ExcludeFields(query, fieldsExclude...)
 }
-
-func joinFields(fields []string) string {
-	normalized := make([]string, 0, len(fields))
-	seen := map[string]bool{}
-	for _, field := range fields {
-		for _, part := range strings.Split(field, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" && !seen[part] {
-				seen[part] = true
-				normalized = append(normalized, part)
-			}
-		}
-	}
-	sort.Strings(normalized)
-	return strings.Join(normalized, ",")
-}
-
-func ensureFields(query url.Values, fields ...string) {
-	if query == nil || query.Get("fields") == "" {
-		return
-	}
-	values := append([]string{}, query["fields"]...)
-	values = append(values, fields...)
-	if joined := joinFields(values); joined != "" {
-		query.Set("fields", joined)
-	}
-}
-
-func removeFieldsExclude(query url.Values, fields ...string) {
-	if query == nil || query.Get("fields!") == "" {
-		return
-	}
-	blocked := map[string]bool{}
-	for _, field := range fields {
-		blocked[field] = true
-	}
-	kept := make([]string, 0, len(query["fields!"]))
-	for _, value := range query["fields!"] {
-		for _, part := range strings.Split(value, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" && !blocked[part] {
-				kept = append(kept, part)
-			}
-		}
-	}
-	if joined := joinFields(kept); joined != "" {
-		query.Set("fields!", joined)
-	} else {
-		query.Del("fields!")
-	}
-}
-
-var defaultTripDataFieldsExclude = []string{"documents", "emails"}
 
 func (spec resourceSpec) responseQuery(query url.Values) url.Values {
 	if !spec.ExcludeData {
 		return query
 	}
-	return tripDataQuery(query)
+	return api.TripDataQuery(query)
 }
 
 func (spec resourceSpec) readResponseQuery(query url.Values) url.Values {
@@ -886,25 +830,6 @@ func (spec resourceSpec) formatReadListPath(tripID string) string {
 func (spec resourceSpec) formatReadDetailPath(tripID, id string) string {
 	path := firstNonEmpty(spec.ReadDetailPath, spec.DetailPath)
 	return fmt.Sprintf(path, tripID, id)
-}
-
-func tripDataQuery(query url.Values) url.Values {
-	if query == nil {
-		query = url.Values{}
-	}
-	addFieldsExclude(query, defaultTripDataFieldsExclude)
-	return query
-}
-
-func addFieldsExclude(query url.Values, fields []string) {
-	if len(fields) == 0 {
-		return
-	}
-	values := append([]string{}, query["fields!"]...)
-	values = append(values, fields...)
-	if joined := joinFields(values); joined != "" {
-		query.Set("fields!", joined)
-	}
 }
 
 func filterTripList(data any, currentUserID string, travelling bool) {

@@ -51,9 +51,12 @@ const (
 
 func New(opts Options) (*mcp.Server, RuntimeInfo, error) {
 	store := config.NewStore(opts.ConfigDir)
-	credentials, err := store.LoadCredentials()
+	var credentials config.Credentials
+	var err error
 	if opts.RequestTokenOnly {
 		credentials, err = store.LoadNonSecretCredentials()
+	} else {
+		credentials, err = store.LoadCredentials()
 	}
 	if err != nil {
 		return nil, RuntimeInfo{}, err
