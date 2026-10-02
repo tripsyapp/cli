@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/tripsyapp/cli/internal/api"
 	"github.com/tripsyapp/cli/internal/config"
@@ -460,7 +459,7 @@ func parseValue(value string) any {
 	if value == "" {
 		return ""
 	}
-	if shouldKeepStringValue(value) {
+	if !json.Valid([]byte(value)) {
 		return value
 	}
 
@@ -471,11 +470,6 @@ func parseValue(value string) any {
 		return parsed
 	}
 	return value
-}
-
-func shouldKeepStringValue(value string) bool {
-	_, err := time.Parse(time.RFC3339Nano, value)
-	return err == nil
 }
 
 func commonListQuery(fs *flagSet) url.Values {
@@ -495,86 +489,8 @@ func commonListQuery(fs *flagSet) url.Values {
 	return query
 }
 
-func tripListQuery(query url.Values) url.Values {
-	ensureQueryFields(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
-	removeQueryFieldsExclude(query, "owner", "guests", "has_dates", "starts_at", "ends_at")
-	return query
-}
-
-var defaultTripDataFieldsExclude = []string{"documents", "emails"}
-
-func tripDataQuery(query url.Values) url.Values {
-	return queryWithFieldsExcluded(query, defaultTripDataFieldsExclude...)
-}
-
-func queryWithFieldsExcluded(query url.Values, fields ...string) url.Values {
-	if len(fields) == 0 {
-		return query
-	}
-	if query == nil {
-		query = url.Values{}
-	}
-	values := append([]string{}, query["fields!"]...)
-	values = append(values, fields...)
-	if joined := joinQueryFields(values); joined != "" {
-		query.Set("fields!", joined)
-	}
-	return query
-}
-
 func apiPathSegment(value string) string {
 	return url.PathEscape(strings.TrimSpace(value))
-}
-
-func joinQueryFields(fields []string) string {
-	normalized := make([]string, 0, len(fields))
-	seen := map[string]bool{}
-	for _, field := range fields {
-		for _, part := range strings.Split(field, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" && !seen[part] {
-				seen[part] = true
-				normalized = append(normalized, part)
-			}
-		}
-	}
-	sort.Strings(normalized)
-	return strings.Join(normalized, ",")
-}
-
-func ensureQueryFields(query url.Values, fields ...string) {
-	if query == nil || query.Get("fields") == "" {
-		return
-	}
-	values := append([]string{}, query["fields"]...)
-	values = append(values, fields...)
-	if joined := joinQueryFields(values); joined != "" {
-		query.Set("fields", joined)
-	}
-}
-
-func removeQueryFieldsExclude(query url.Values, fields ...string) {
-	if query == nil || query.Get("fields!") == "" {
-		return
-	}
-	blocked := map[string]bool{}
-	for _, field := range fields {
-		blocked[field] = true
-	}
-	kept := make([]string, 0, len(query["fields!"]))
-	for _, value := range query["fields!"] {
-		for _, part := range strings.Split(value, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" && !blocked[part] {
-				kept = append(kept, part)
-			}
-		}
-	}
-	if joined := joinQueryFields(kept); joined != "" {
-		query.Set("fields!", joined)
-	} else {
-		query.Del("fields!")
-	}
 }
 
 func requireToken(client *api.Client) error {
@@ -991,10 +907,16 @@ func (a *app) auth(ctx context.Context, args []string) error {
 }
 
 func (a *app) authToken(args []string) error {
+	if len(args) > 0 && args[0] != "set" {
+		return usageError("unknown auth token subcommand %q", args[0])
+	}
 	if len(args) > 0 && args[0] == "set" {
 		fs, err := parseFlags(args[1:])
 		if err != nil {
 			return err
+		}
+		if len(fs.positionals) > 1 {
+			return usageError("auth token set accepts one token")
 		}
 		token := fs.String("token")
 		if token == "" && len(fs.positionals) > 0 {
@@ -1086,7 +1008,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		query := tripListQuery(commonListQuery(fs))
+		query := api.TripListQuery(commonListQuery(fs))
 		resp, err := a.client.RequestAllPages(ctx, "GET", "/v2/trips/", query, nil)
 		if err != nil {
 			return err
@@ -1112,7 +1034,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		query := tripListQuery(commonListQuery(fs))
+		query := api.TripListQuery(commonListQuery(fs))
 		resp, err := a.client.RequestAllPages(ctx, "GET", "/v2/trips/", query, nil)
 		if err != nil {
 			return err
@@ -1142,7 +1064,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "GET", "/v1/trips/"+apiPathSegment(id), api.TripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1170,7 +1092,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err := validateTripCoverImageURL(payload); err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "POST", "/v1/trips", tripDataQuery(nil), payload)
+		resp, err := a.client.Request(ctx, "POST", "/v1/trips", api.TripDataQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1202,7 +1124,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err := validateTripCoverImageURL(payload); err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), payload)
+		resp, err := a.client.Request(ctx, "PATCH", "/v1/trips/"+apiPathSegment(id), api.TripDataQuery(nil), payload)
 		if err != nil {
 			return err
 		}
@@ -1216,7 +1138,7 @@ func (a *app) trips(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+apiPathSegment(id), tripDataQuery(nil), nil)
+		resp, err := a.client.Request(ctx, "DELETE", "/v1/trips/"+apiPathSegment(id), api.TripDataQuery(nil), nil)
 		if err != nil {
 			return err
 		}
@@ -1572,7 +1494,7 @@ func (spec resourceSpec) responseQuery(query url.Values) url.Values {
 	if !spec.ExcludeData {
 		return query
 	}
-	return tripDataQuery(query)
+	return api.TripDataQuery(query)
 }
 
 func (spec resourceSpec) readResponseQuery(query url.Values) url.Values {
