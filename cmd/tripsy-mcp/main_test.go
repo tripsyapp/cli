@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -174,6 +177,38 @@ func TestExplicitToolAnnotationsHTTPHandlerNormalizesPostResponses(t *testing.T)
 
 	if !strings.Contains(res.Body.String(), `"readOnlyHint":false`) {
 		t.Fatalf("response body should include explicit readOnlyHint false: %s", res.Body.String())
+	}
+}
+
+func TestExplicitToolAnnotationsWriterPreservesMessageBoundaries(t *testing.T) {
+	var output bytes.Buffer
+	writer := explicitToolAnnotationsWriter{Writer: &output}
+	messages := []string{
+		`{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"tripsy_documents_list","annotations":{"readOnlyHint":true}}]}}` + "\n",
+		`{"jsonrpc":"2.0","id":2,"result":{}}` + "\n",
+	}
+	for _, message := range messages {
+		n, err := writer.Write([]byte(message))
+		if err != nil || n != len(message) {
+			t.Fatalf("Write = (%d, %v), want (%d, nil)", n, err, len(message))
+		}
+	}
+	if !bytes.HasSuffix(output.Bytes(), []byte("\n")) {
+		t.Fatal("stdio output must end with a newline")
+	}
+	scanner := bufio.NewScanner(&output)
+	count := 0
+	for scanner.Scan() {
+		if !json.Valid(scanner.Bytes()) {
+			t.Fatalf("stdio message %d is not valid standalone JSON: %s", count+1, scanner.Bytes())
+		}
+		count++
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if count != len(messages) {
+		t.Fatalf("message count = %d, want %d", count, len(messages))
 	}
 }
 
