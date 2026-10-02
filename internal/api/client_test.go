@@ -122,3 +122,40 @@ func jsonResponse(status int, body any) *http.Response {
 		Body:       io.NopCloser(strings.NewReader(string(encoded))),
 	}
 }
+
+func TestPaginationRejectsForeignOriginBeforeSendingToken(t *testing.T) {
+	for _, target := range []string{"https://foreign.test/page", "http://api.test/page", "https://user@api.test/page", "https://api.test:8443/page"} {
+		client := NewClient("https://api.test", "secret-token")
+		calls := 0
+		client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			calls++
+			return jsonResponse(http.StatusOK, map[string]any{"results": []any{}, "next": target}), nil
+		})}
+		if _, err := client.RequestAllPages(context.Background(), "GET", "/v2/trips", nil, nil); err == nil {
+			t.Fatalf("allowed foreign pagination URL %s", target)
+		}
+		if calls != 1 {
+			t.Fatalf("sent credentials to pagination URL %s", target)
+		}
+	}
+}
+
+func TestRequestRejectsSubscriptionUpdatesBeforeSending(t *testing.T) {
+	client := NewClient("https://api.test", "test-token")
+	client.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Fatal("subscription update reached the API")
+		return nil, nil
+	})}
+	for _, body := range []any{
+		map[string]any{"is_premium": true},
+		map[string]any{"is_premium": false, "name": "Test"},
+		map[string]any{"premium_expiration_date": nil},
+		`{"is_premium":true}`,
+		[]byte(`{"is_premium":false}`),
+		json.RawMessage(`{"\u0069s_premium":true}`),
+	} {
+		if _, err := client.Request(context.Background(), "PATCH", "/v1/me", nil, body); err == nil || !strings.Contains(err.Error(), "subscription status") {
+			t.Fatalf("body %v: error = %v, want subscription rejection", body, err)
+		}
+	}
+}

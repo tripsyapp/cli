@@ -567,3 +567,28 @@ func testAPIApp(t *testing.T, handler http.HandlerFunc) (*app, func()) {
 		out:    output.Options{JSON: true},
 	}, server.Close
 }
+
+func TestCLIRejectsSubscriptionUpdatesIncludingRawAndJSON(t *testing.T) {
+	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("subscription update reached the API")
+	})
+	defer cleanup()
+	for _, args := range [][]string{
+		{"update", "--set", "is_premium=true"},
+		{"update", "--data", `{"is_premium":false}`},
+		{"update", "--set", "premium_expiration_date=2099-01-01T00:00:00Z"},
+	} {
+		if err := a.me(context.Background(), args); err == nil || !strings.Contains(err.Error(), "subscription status") {
+			t.Fatalf("me %v: error = %v", args, err)
+		}
+	}
+	for _, args := range [][]string{
+		{"PATCH", "/v1/me", "--data", `{"is_premium":true}`},
+		{"PATCH", "/v1/me", "--set", "is_premium=false"},
+		{"PUT", "/v1/me", "--set", "premium_expiration_date=2099-01-01T00:00:00Z"},
+	} {
+		if err := a.rawRequest(context.Background(), args); err == nil || !strings.Contains(err.Error(), "subscription status") {
+			t.Fatalf("request %v: error = %v", args, err)
+		}
+	}
+}

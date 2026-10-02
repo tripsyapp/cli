@@ -64,18 +64,27 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 
 	var reader io.Reader
 	if body != nil {
+		var encoded []byte
 		switch v := body.(type) {
 		case []byte:
-			reader = bytes.NewReader(v)
+			encoded = v
 		case string:
-			reader = strings.NewReader(v)
+			encoded = []byte(v)
 		default:
-			encoded, err := json.Marshal(v)
+			encoded, err = json.Marshal(v)
 			if err != nil {
 				return nil, err
 			}
-			reader = bytes.NewReader(encoded)
 		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(encoded, &fields) == nil {
+			for _, field := range []string{"is_premium", "premium_expiration_date"} {
+				if _, present := fields[field]; present {
+					return nil, fmt.Errorf("subscription status cannot be changed through CLI or MCP")
+				}
+			}
+		}
+		reader = bytes.NewReader(encoded)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, strings.ToUpper(method), target, reader)
@@ -148,6 +157,22 @@ func (c *Client) RequestAllPages(ctx context.Context, method, path string, query
 		}
 		visited[next] = true
 
+		target, err := c.url(next, nil)
+		if err != nil {
+			return nil, err
+		}
+		pageURL, err := url.Parse(target)
+		if err != nil {
+			return nil, err
+		}
+		baseURL, err := url.Parse(c.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		if pageURL.Scheme != baseURL.Scheme || !strings.EqualFold(pageURL.Host, baseURL.Host) || pageURL.User != nil {
+			return nil, fmt.Errorf("pagination URL must use the configured Tripsy API origin")
+		}
+
 		pageResp, err := c.Request(ctx, method, next, nil, nil)
 		if err != nil {
 			return pageResp, err
@@ -202,6 +227,53 @@ func (c *Client) UploadFile(ctx context.Context, uploadURL string, headers map[s
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
 		return &Error{StatusCode: resp.StatusCode, Raw: raw}
+	}
+	return nil
+}
+
+// UploadDocumentBytes sends explicit content only to an API-issued S3 document URL.
+// It never uses the Tripsy Authorization header or follows upload redirects.
+func (c *Client) UploadDocumentBytes(ctx context.Context, uploadURL, bucket string, headers map[string]string, content []byte) error {
+	u, err := url.Parse(uploadURL)
+	if err != nil {
+		return fmt.Errorf("invalid document upload URL")
+	}
+	host := strings.ToLower(u.Hostname())
+	prefix := strings.ToLower(bucket) + ".s3"
+	if bucket == "" || u.Scheme != "https" || u.User != nil || u.Port() != "" || !strings.HasSuffix(host, ".amazonaws.com") || !(host == prefix+".amazonaws.com" || strings.HasPrefix(host, prefix+".") || strings.HasPrefix(host, prefix+"-")) {
+		return fmt.Errorf("document upload URL must address the private bucket on HTTPS S3")
+	}
+	if u.Query().Get("X-Amz-Signature") == "" {
+		return fmt.Errorf("document upload URL must be presigned")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, u.String(), bytes.NewReader(content))
+	if err != nil {
+		return err
+	}
+	request.ContentLength = int64(len(content))
+	for key, value := range headers {
+		switch strings.ToLower(key) {
+		case "content-type":
+			request.Header.Set(key, value)
+		case "content-length":
+			if value != fmt.Sprint(len(content)) {
+				return fmt.Errorf("upload size does not match the signed content length")
+			}
+		default:
+			return fmt.Errorf("unsupported private document upload header %s", key)
+		}
+	}
+	uploadClient := *c.httpClient()
+	uploadClient.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return fmt.Errorf("document upload redirects are not allowed")
+	}
+	response, err := uploadClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("document upload returned HTTP %d; document was not attached", response.StatusCode)
 	}
 	return nil
 }

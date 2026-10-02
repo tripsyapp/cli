@@ -39,6 +39,20 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 		"tripsy_trips_list",
 		"tripsy_trips_following_list",
 		"tripsy_raw_request",
+		"tripsy_emails_list",
+		"tripsy_emails_show",
+		"tripsy_documents_list",
+		"tripsy_documents_show",
+		"tripsy_documents_get",
+		"tripsy_documents_attach",
+		"tripsy_documents_update",
+		"tripsy_documents_delete",
+		"tripsy_documents_upload_prepare",
+		"tripsy_documents_upload",
+		"tripsy_inbox_list",
+		"tripsy_inbox_show",
+		"tripsy_inbox_update",
+		"tripsy_inbox_delete",
 	} {
 		if findTool(res.Tools, name) == nil {
 			t.Fatalf("tool %q was not registered", name)
@@ -46,10 +60,6 @@ func TestListToolsIncludesCoreTripsySurface(t *testing.T) {
 	}
 
 	for _, name := range []string{
-		"tripsy_emails_list",
-		"tripsy_inbox_list",
-		"tripsy_documents_attach",
-		"tripsy_documents_upload",
 		"tripsy_uploads_create",
 	} {
 		if findTool(res.Tools, name) != nil {
@@ -1040,7 +1050,7 @@ func TestRawRequestRejectsExternalURL(t *testing.T) {
 	}
 }
 
-func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
+func TestRawRequestRejectsUnavailableOrTypedOnlyCapabilities(t *testing.T) {
 	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("API should not be called for withheld MCP capabilities")
 	}))
@@ -1051,7 +1061,7 @@ func TestRawRequestRejectsWithheldCapabilities(t *testing.T) {
 		want string
 	}{
 		{path: "/v1/emails", want: "email endpoints"},
-		{path: "/v1/automation/emails/123", want: "inbox endpoints"},
+		{path: "/v1/automation/emails/123", want: "dedicated tripsy_inbox_list"},
 		{path: "/v1/documents/123/get", want: "document endpoints"},
 		{path: "/v1/trip/42/activity/9/documents", want: "document endpoints"},
 		{path: "/v1/storage/uploads", want: "upload endpoints"},
@@ -1214,4 +1224,23 @@ func toolText(res *mcp.CallToolResult) string {
 		}
 	}
 	return ""
+}
+
+func TestMCPRejectsSubscriptionUpdatesIncludingRawRequests(t *testing.T) {
+	session, cleanup := connectTestSession(t, "test-token", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("subscription update reached the API")
+	}))
+	defer cleanup()
+	for _, data := range []map[string]any{{"is_premium": true}, {"is_premium": false}, {"premium_expiration_date": "2099-01-01T00:00:00Z"}} {
+		for _, tool := range []string{"tripsy_me_update", "tripsy_raw_request"} {
+			args := map[string]any{"data": data}
+			if tool == "tripsy_raw_request" {
+				args["method"], args["path"] = "PATCH", "/v1/me"
+			}
+			res := callTool(t, session, tool, args)
+			if !res.IsError || !strings.Contains(toolText(res), "subscription status") {
+				t.Fatalf("%s: expected subscription rejection, got %s", tool, toolText(res))
+			}
+		}
+	}
 }
