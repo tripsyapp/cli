@@ -15,15 +15,13 @@ func TestCollaboratorCommands(t *testing.T) {
 		name, method, path, body string
 		args                     []string
 	}{
-		{"list", "GET", "/v1/trip/42/collaborators", "", []string{"list", "--trip", "42"}},
 		{"legacy list", "GET", "/v1/trip/42/collaborators", "", []string{"--trip", "42"}},
 		{"legacy positional", "GET", "/v1/trip/42/collaborators", "", []string{"42"}},
 		{"invite defaults", "POST", "/v1/guests/invite", `{"trip_id":"42","invited_user_email":"guest@example.com","permissions":{}}`, []string{"invite", "--trip", "42", "--email", "guest@example.com"}},
 		{"invite permissions", "POST", "/v1/guests/invite", `{"trip_id":"42","invited_user_email":"guest@example.com","permissions":{"read_only":true,"is_travelling":false}}`, []string{"invite", "--trip", "42", "--email", "guest@example.com", "--read-only", "true", "--is-travelling", "false"}},
-		{"update false", "PATCH", "/v1/trip/42/collaborator/7/permissions", `{"can_edit":false}`, []string{"update", "7", "--trip", "42", "--can-edit", "false"}},
 		{"update data", "PATCH", "/v1/trip/42/collaborator/7/permissions", `{"can_see_expenses":false,"can_add_guests":true}`, []string{"update", "7", "--trip", "42", "--data", `{"can_see_expenses":false}`, "--set", "can_add_guests=true"}},
 		{"delete", "DELETE", "/v1/trip/42/collaborator/7", "", []string{"delete", "7", "--trip", "42"}},
-		{"escaped ids", "PATCH", "/v1/trip/42%2F43/collaborator/7%2F8/permissions", `{"can_edit":true}`, []string{"update", "7/8", "--trip", "42/43", "--can-edit", "true"}},
+		{"escaped ids", "PATCH", "/v1/trip/42%2F43/collaborator/7%2F8/permissions", `{"can_edit":false}`, []string{"update", "7/8", "--trip", "42/43", "--can-edit", "false"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var requests int
@@ -101,6 +99,9 @@ func TestCollaboratorPermissionDenied(t *testing.T) {
 func TestCollaboratorsListCombinesPages(t *testing.T) {
 	calls := 0
 	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/trip/42/collaborators" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+		}
 		calls++
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Query().Get("page") == "2" {

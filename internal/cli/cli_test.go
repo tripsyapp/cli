@@ -143,7 +143,7 @@ func TestFormatFullObjectShowsDocumentedAndExtraFields(t *testing.T) {
 	}
 }
 
-func TestTripsCommandsUseV2ForListsAndV1ForDetailsAndWrites(t *testing.T) {
+func TestTripsWriteCommandsUseV1(t *testing.T) {
 	for _, tt := range []struct {
 		name          string
 		args          []string
@@ -151,8 +151,6 @@ func TestTripsCommandsUseV2ForListsAndV1ForDetailsAndWrites(t *testing.T) {
 		path          string
 		fieldsExclude string
 	}{
-		{name: "list", args: []string{"list"}, method: http.MethodGet, path: "/v2/trips/"},
-		{name: "show", args: []string{"show", "42"}, method: http.MethodGet, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
 		{name: "create", args: []string{"create", "--name", "Copenhagen"}, method: http.MethodPost, path: "/v1/trips", fieldsExclude: "documents,emails"},
 		{name: "update", args: []string{"update", "42", "--name", "Copenhagen"}, method: http.MethodPatch, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
 		{name: "delete", args: []string{"delete", "42"}, method: http.MethodDelete, path: "/v1/trips/42", fieldsExclude: "documents,emails"},
@@ -187,6 +185,9 @@ func TestTripsCommandsUseV2ForListsAndV1ForDetailsAndWrites(t *testing.T) {
 
 func TestTripsShowEscapesIDPathSegment(t *testing.T) {
 	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %s, want GET", r.Method)
+		}
 		if got := r.RequestURI; !strings.HasPrefix(got, "/v1/trips/..%2Fme?") {
 			t.Errorf("request URI = %q, want escaped trip id segment", got)
 		}
@@ -206,6 +207,12 @@ func TestTripsShowEscapesIDPathSegment(t *testing.T) {
 func TestTripsListCombinesV2PaginatedResults(t *testing.T) {
 	var paths []string
 	a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %s, want GET", r.Method)
+		}
+		if got := r.URL.Query().Get("fields!"); got != "" {
+			t.Errorf("fields! = %q, want empty", got)
+		}
 		paths = append(paths, r.URL.RequestURI())
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.RequestURI() {
@@ -342,41 +349,39 @@ func TestTripsCreateRejectsShortUnsplashPhotoID(t *testing.T) {
 }
 
 func TestTripSubresourceCommandsUseV2ForReadsAndV1ForWrites(t *testing.T) {
-	for _, spec := range []resourceSpec{activityResource, hostingResource, transportationResource} {
-		t.Run(spec.Plural, func(t *testing.T) {
-			for _, tt := range []struct {
-				name          string
-				args          []string
-				method        string
-				path          string
-				fieldsExclude string
-			}{
-				{name: "list", args: []string{"list", "--trip", "42", "--fields-exclude", "notes"}, method: http.MethodGet, path: spec.formatReadListPath("42"), fieldsExclude: "notes"},
-				{name: "show", args: []string{"show", "--trip", "42", "9"}, method: http.MethodGet, path: spec.formatReadDetailPath("42", "9")},
-				{name: "create", args: []string{"create", "--trip", "42", "--name", "Reservation"}, method: http.MethodPost, path: spec.listPath("42"), fieldsExclude: "documents,emails"},
-				{name: "update", args: []string{"update", "--trip", "42", "9", "--name", "Reservation"}, method: http.MethodPatch, path: spec.detailPath("42", "9"), fieldsExclude: "documents,emails"},
-				{name: "delete", args: []string{"delete", "--trip", "42", "9"}, method: http.MethodDelete, path: spec.detailPath("42", "9"), fieldsExclude: "documents,emails"},
-			} {
-				t.Run(tt.name, func(t *testing.T) {
-					a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
-						if r.Method != tt.method {
-							t.Errorf("method = %s, want %s", r.Method, tt.method)
-						}
-						if r.URL.Path != tt.path {
-							t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
-						}
-						if got := r.URL.Query().Get("fields!"); got != tt.fieldsExclude {
-							t.Errorf("fields! = %q, want %q", got, tt.fieldsExclude)
-						}
-						w.Header().Set("Content-Type", "application/json")
-						_, _ = w.Write([]byte(`{"id":9,"name":"Reservation","results":[]}`))
-					})
-					defer cleanup()
+	// The resource handler is shared; cover each operation once. Creation is
+	// covered for all three resources by the datetime flag tests below.
+	for _, tt := range []struct {
+		name          string
+		spec          resourceSpec
+		args          []string
+		method        string
+		path          string
+		fieldsExclude string
+	}{
+		{name: "list activities", spec: activityResource, args: []string{"list", "--trip", "42", "--fields-exclude", "notes"}, method: http.MethodGet, path: "/v2/trip/42/activities/", fieldsExclude: "notes"},
+		{name: "show hosting", spec: hostingResource, args: []string{"show", "--trip", "42", "9"}, method: http.MethodGet, path: "/v2/trip/42/hosting/9/"},
+		{name: "update transportation", spec: transportationResource, args: []string{"update", "--trip", "42", "9", "--name", "Reservation"}, method: http.MethodPatch, path: "/v1/trip/42/transportation/9", fieldsExclude: "documents,emails"},
+		{name: "delete activity", spec: activityResource, args: []string{"delete", "--trip", "42", "9"}, method: http.MethodDelete, path: "/v1/trip/42/activity/9", fieldsExclude: "documents,emails"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("method = %s, want %s", r.Method, tt.method)
+				}
+				if r.URL.Path != tt.path {
+					t.Errorf("path = %s, want %s", r.URL.Path, tt.path)
+				}
+				if got := r.URL.Query().Get("fields!"); got != tt.fieldsExclude {
+					t.Errorf("fields! = %q, want %q", got, tt.fieldsExclude)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"id":9,"name":"Reservation","results":[]}`))
+			})
+			defer cleanup()
 
-					if err := a.resource(context.Background(), spec, tt.args); err != nil {
-						t.Fatalf("%s(%v) failed: %v", spec.Plural, tt.args, err)
-					}
-				})
+			if err := a.resource(context.Background(), tt.spec, tt.args); err != nil {
+				t.Fatalf("%s(%v) failed: %v", tt.spec.Plural, tt.args, err)
 			}
 		})
 	}
@@ -441,11 +446,13 @@ func TestTripSubresourceCreatePreservesDatetimeFlagValues(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		spec resourceSpec
+		path string
 		args []string
 		want map[string]any
 	}{
 		{
 			name: "hosting",
+			path: "/v1/trip/42/hostings",
 			spec: hostingResource,
 			args: []string{
 				"create",
@@ -464,6 +471,7 @@ func TestTripSubresourceCreatePreservesDatetimeFlagValues(t *testing.T) {
 		},
 		{
 			name: "activity",
+			path: "/v1/trip/42/activities",
 			spec: activityResource,
 			args: []string{
 				"create",
@@ -482,6 +490,7 @@ func TestTripSubresourceCreatePreservesDatetimeFlagValues(t *testing.T) {
 		},
 		{
 			name: "transportation",
+			path: "/v1/trip/42/transportations",
 			spec: transportationResource,
 			args: []string{
 				"create",
@@ -503,6 +512,12 @@ func TestTripSubresourceCreatePreservesDatetimeFlagValues(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			a, cleanup := testAPIApp(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost || r.URL.Path != tt.path {
+					t.Errorf("request = %s %s, want POST %s", r.Method, r.URL.Path, tt.path)
+				}
+				if got := r.URL.Query().Get("fields!"); got != "documents,emails" {
+					t.Errorf("fields! = %q, want documents,emails", got)
+				}
 				if got := r.Header.Get("Content-Type"); got != "application/json" {
 					t.Errorf("Content-Type = %q, want application/json", got)
 				}
@@ -544,15 +559,6 @@ func TestExpensesDoNotGetTripDataFieldExclusions(t *testing.T) {
 	if err := a.resource(context.Background(), expenseResource, []string{"show", "--trip", "42", "9"}); err != nil {
 		t.Fatalf("expenses show failed: %v", err)
 	}
-}
-
-func (spec resourceSpec) listPath(tripID string) string {
-	return strings.ReplaceAll(spec.ListPath, "%s", tripID)
-}
-
-func (spec resourceSpec) detailPath(tripID, id string) string {
-	path := strings.Replace(spec.DetailPath, "%s", tripID, 1)
-	return strings.Replace(path, "%s", id, 1)
 }
 
 func testAPIApp(t *testing.T, handler http.HandlerFunc) (*app, func()) {

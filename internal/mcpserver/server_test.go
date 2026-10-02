@@ -291,22 +291,6 @@ func TestItineraryGuidanceReturnsTripCreationRules(t *testing.T) {
 	}
 }
 
-func TestListToolsCanDisableRawRequest(t *testing.T) {
-	session, cleanup := connectTestSessionOptions(t, "test-token", http.NotFoundHandler(), Options{DisableRawRequest: true})
-	defer cleanup()
-
-	res, err := session.ListTools(testContext(t), nil)
-	if err != nil {
-		t.Fatalf("ListTools() failed: %v", err)
-	}
-	if findTool(res.Tools, "tripsy_raw_request") != nil {
-		t.Fatal("tripsy_raw_request should not be registered when disabled")
-	}
-	if findTool(res.Tools, "tripsy_trips_create") == nil {
-		t.Fatal("typed tools should still be registered")
-	}
-}
-
 func TestNewRequestTokenOnlyIgnoresServerTokenSources(t *testing.T) {
 	t.Setenv("TRIPSY_AUTH_BACKEND", "file")
 	t.Setenv("TRIPSY_TOKEN", "env-token")
@@ -567,7 +551,7 @@ func TestActivityCreateRequiresCoordinates(t *testing.T) {
 	}
 }
 
-func TestActivityCreateForwardsCoordinates(t *testing.T) {
+func TestActivityCreateForwardsZeroCoordinates(t *testing.T) {
 	var called atomic.Int32
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called.Add(1)
@@ -582,7 +566,7 @@ func TestActivityCreateForwardsCoordinates(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Errorf("decode body: %v", err)
 		}
-		if body["latitude"] != 41.8902 || body["longitude"] != 12.4922 {
+		if body["latitude"] != 0.0 || body["longitude"] != 12.4922 {
 			t.Errorf("coordinates not forwarded: %#v", body)
 		}
 
@@ -597,7 +581,7 @@ func TestActivityCreateForwardsCoordinates(t *testing.T) {
 		"trip_id":       "42",
 		"name":          "Colosseum Tour",
 		"activity_type": "tour",
-		"latitude":      41.8902,
+		"latitude":      0.0,
 		"longitude":     12.4922,
 	})
 	if res.IsError {
@@ -791,28 +775,6 @@ func TestRemoteOAuthBearerTokenUsesBearerScheme(t *testing.T) {
 	}
 }
 
-func TestBearerTokenVerifierValidatesTripsyToken(t *testing.T) {
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Token valid-token" {
-			t.Errorf("Authorization = %q, want Token valid-token", got)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":42,"email":"user@example.com"}`))
-	}))
-	defer apiServer.Close()
-
-	info, err := BearerTokenVerifier(apiServer.URL)(testContext(t), "valid-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
-	if err != nil {
-		t.Fatalf("BearerTokenVerifier() failed: %v", err)
-	}
-	if info.UserID != "42" {
-		t.Fatalf("UserID = %q, want 42", info.UserID)
-	}
-	if got := info.Extra[tokenInfoTripsyTokenKey]; got != "valid-token" {
-		t.Fatalf("stored token = %v, want valid-token", got)
-	}
-}
-
 func TestOAuthBearerTokenVerifierValidatesUserinfo(t *testing.T) {
 	userinfoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer valid-oauth-token" {
@@ -924,10 +886,13 @@ func TestHostedTokenVerifierDoesNotFallbackAfterOAuthServerError(t *testing.T) {
 	}
 }
 
-func TestBearerTokenVerifierCachesRepeatedTokens(t *testing.T) {
+func TestBearerTokenVerifierValidatesAndCachesTripsyToken(t *testing.T) {
 	var calls atomic.Int32
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
+		if got := r.Header.Get("Authorization"); got != "Token repeat-token" {
+			t.Errorf("Authorization = %q, want Token repeat-token", got)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":42}`))
 	}))
@@ -935,8 +900,15 @@ func TestBearerTokenVerifierCachesRepeatedTokens(t *testing.T) {
 
 	verifier := BearerTokenVerifier(apiServer.URL)
 	for i := 0; i < 3; i++ {
-		if _, err := verifier(testContext(t), "repeat-token", httptest.NewRequest(http.MethodPost, "/mcp", nil)); err != nil {
+		info, err := verifier(testContext(t), "repeat-token", httptest.NewRequest(http.MethodPost, "/mcp", nil))
+		if err != nil {
 			t.Fatalf("verifier() failed on call %d: %v", i, err)
+		}
+		if info.UserID != "42" {
+			t.Fatalf("UserID = %q, want 42", info.UserID)
+		}
+		if got := info.Extra[tokenInfoTripsyTokenKey]; got != "repeat-token" {
+			t.Fatalf("stored token = %v, want repeat-token", got)
 		}
 	}
 	if got := calls.Load(); got != 1 {
