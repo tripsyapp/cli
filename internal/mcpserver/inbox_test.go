@@ -24,7 +24,7 @@ func TestInboxToolsRegisteredWithoutRawRequests(t *testing.T) {
 			t.Fatalf("missing inbox %s tool", action)
 		}
 		annotations := tool.Annotations
-		if annotations == nil || annotations.ReadOnlyHint != (action == "list" || action == "show") || annotations.DestructiveHint == nil || *annotations.DestructiveHint != (action == "delete") || annotations.OpenWorldHint == nil || *annotations.OpenWorldHint {
+		if annotations == nil || annotations.ReadOnlyHint != (action == "list" || action == "show") || annotations.DestructiveHint == nil || *annotations.DestructiveHint != (action == "delete" || action == "update") || annotations.OpenWorldHint == nil || *annotations.OpenWorldHint {
 			t.Fatalf("incorrect annotations for %s: %#v", tool.Name, annotations)
 		}
 		if action == "update" && !annotations.IdempotentHint {
