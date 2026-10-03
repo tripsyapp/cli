@@ -23,7 +23,7 @@ func TestGuestToolSchemasAndAnnotations(t *testing.T) {
 		if tool.Annotations.ReadOnlyHint {
 			t.Errorf("incorrect read-only annotation: %s", name)
 		}
-		if tool.Annotations.DestructiveHint == nil || *tool.Annotations.DestructiveHint != (name == "tripsy_collaborators_delete") {
+		if tool.Annotations.DestructiveHint == nil || !*tool.Annotations.DestructiveHint {
 			t.Errorf("incorrect destructive annotation: %s", name)
 		}
 		if name == "tripsy_collaborators_update" {

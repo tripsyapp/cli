@@ -86,7 +86,7 @@ func normalizeToolAnnotationsValue(value any) bool {
 			changed = true
 		}
 		if _, ok := annotations["openWorldHint"]; !ok {
-			annotations["openWorldHint"] = false
+			annotations["openWorldHint"] = openWorldToolName(name)
 			changed = true
 		}
 		if _, ok := annotations["destructiveHint"]; !ok {
@@ -100,11 +100,24 @@ func normalizeToolAnnotationsValue(value any) bool {
 func readOnlyToolName(name string) bool {
 	return strings.HasSuffix(name, "_list") ||
 		strings.HasSuffix(name, "_show") ||
+		name == toolName("tripsy", "documents", "get") ||
 		name == toolName("tripsy", "status") ||
 		name == toolName("tripsy", "itinerary", "guidance") ||
 		name == toolName("tripsy", "collaborators", "list")
 }
 
 func destructiveToolName(name string) bool {
-	return strings.HasSuffix(name, "_delete") || name == toolName("tripsy", "raw_request")
+	return strings.HasSuffix(name, "_delete") || strings.HasSuffix(name, "_update") ||
+		name == toolName("tripsy", "collaborators", "invite") ||
+		name == toolName("tripsy", "trips", "create") ||
+		name == toolName("tripsy", "raw_request")
+}
+
+func openWorldToolName(name string) bool {
+	switch name {
+	case "tripsy_collaborators_invite", "tripsy_trips_create", "tripsy_documents_attach", "tripsy_documents_upload":
+		return true
+	default:
+		return false
+	}
 }

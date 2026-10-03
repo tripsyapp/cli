@@ -292,7 +292,7 @@ With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Aut
 
 ## MCP Tools
 
-The MCP server exposes the tools below. All tools are closed-world: they only interact with the Tripsy API for the authenticated Tripsy account, not arbitrary external services or URLs.
+The MCP server exposes the tools below. Most tools operate within the authenticated Tripsy account and accessible trips. Invitations, external document links, and document byte uploads advertise `openWorldHint: true` because they can reach external recipients, websites, or S3 storage.
 
 ### MCP Tool Conventions
 
@@ -350,7 +350,7 @@ Write tools:
 - `tripsy_categories_create`: create a custom activity category.
 - `tripsy_categories_update`: update a custom activity category.
 
-Destructive tools:
+Delete and raw-request tools:
 
 - `tripsy_inbox_delete`: delete an automation email and clear its parent associations.
 - `tripsy_collaborators_delete`: remove a guest and revoke trip access and itinerary assignments.
@@ -363,6 +363,26 @@ Destructive tools:
 - `tripsy_raw_request`: make a raw request to supported Tripsy public API endpoints. This tool is disabled when the MCP server runs with `--disable-raw-request`.
 
 Delete operations are available through MCP and may be used when the user asks to remove data. They are recoverable if they need to be undone later.
+
+### Plugin Submission Annotations
+
+All tools explicitly expose `readOnlyHint`, `destructiveHint`, and `openWorldHint`, including false values on JSON and SSE transports. Descriptions explain destructive and external effects. Updates retain `idempotentHint: true`; repeated updates can be idempotent while overwriting existing data.
+
+| Tools | `readOnlyHint` | `destructiveHint` | `openWorldHint` | Submission justification |
+| --- | --- | --- | --- | --- |
+| List/show tools, `tripsy_status`, `tripsy_itinerary_guidance`, `tripsy_documents_get` | true | false | false | Read configuration or accessible Tripsy records without changing them. Download URL retrieval returns a link without fetching its contents. |
+| Activity, category, expense, hosting, and transportation create tools | false | false | false | Add records within Tripsy. Itinerary and expense records do not themselves book travel or charge a payment. |
+| Activity, category, expense, hosting, transportation, trip, and profile update tools | false | true | false | Overwrite supplied fields on existing records. These tools do not automatically preserve or restore previous values. |
+| `tripsy_collaborators_update` | false | true | false | Can revoke editing or document/expense visibility permissions, or overwrite travel and notification preferences. Broader changes require API guest-management permission. |
+| `tripsy_documents_update` | false | true | false | Can overwrite or clear metadata and replace a parent association, changing document access. Omitted fields stay unchanged; moves require one destination and API permission checks. |
+| `tripsy_inbox_update` | false | true | false | Can overwrite a subject or clear existing associations during a move, removing the email from the manual-review inbox. Moves require one editable target. |
+| `tripsy_collaborators_invite`, `tripsy_trips_create` | false | true | true | Can send guest invitations to external email recipients and expose trip data. Sent email cannot be unsent. Trip creation supports invitations through `data.guest_invites`; hints cover this optional mode too. |
+| `tripsy_documents_attach` | false | false | true | Adds an external HTTP(S) link or finalizes an uploaded private S3 file. File attachment requires an upload receipt bound to the caller and parent. |
+| `tripsy_documents_upload` | false | false | true | Sends supplied bytes to an API-issued private S3 URL and attaches the result in Tripsy. It accepts no server paths or arbitrary upload URLs and sends no Tripsy credentials to S3. |
+| `tripsy_documents_upload_prepare` | false | false | false | Prepares an upload receipt through the Tripsy API; does not upload bytes or create a document. |
+| Delete tools and `tripsy_raw_request` | false | true | false | Can remove or broadly mutate Tripsy data. Guest removal revokes access and clears assignments. Raw requests are restricted to supported public Tripsy API routes and can be disabled. |
+
+For ChatGPT plugin submission, deploy the updated server, select **Scan Tools** in the submission portal, verify the imported annotations, and provide justifications matching the tools' actual behavior. Server annotations determine the imported values; portal justifications do not override them. A notice that a tool update needs further review is a review status, and changing annotations does not guarantee approval. See the [official OpenAI remote MCP review requirements](https://developers.openai.com/plugins/deploy/app-review).
 
 Trip list results are split by current-user travelling status: `tripsy_trips_list` returns trips where the authenticated user is travelling, and `tripsy_trips_following_list` returns trips the user follows but is not travelling on. For date handling, `has_dates` is authoritative: when `has_dates` is `false`, ignore `starts_at` and `ends_at` even if those fields are present.
 
