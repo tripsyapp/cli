@@ -292,7 +292,7 @@ With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Aut
 
 ## MCP Tools
 
-The MCP server exposes the tools below. Most tools operate within the authenticated Tripsy account and accessible trips. Invitations, external document links, and document byte uploads advertise `openWorldHint: true` because they can reach external recipients, websites, or S3 storage.
+The MCP server exposes the tools below. Most tools operate within the authenticated Tripsy account and accessible trips. Invitations, external document links and metadata URLs, and document byte uploads advertise `openWorldHint: true` because they can reach external recipients, websites, or S3 storage. Inbox updates also conservatively advertise this hint for moves that make imported email content and attachments available to destination-trip collaborators.
 
 ### MCP Tool Conventions
 
@@ -374,8 +374,8 @@ All tools explicitly expose `readOnlyHint`, `destructiveHint`, and `openWorldHin
 | Activity, category, expense, hosting, and transportation create tools | false | false | false | Add records within Tripsy. Itinerary and expense records do not themselves book travel or charge a payment. |
 | Activity, category, expense, hosting, transportation, trip, and profile update tools | false | true | false | Overwrite supplied fields on existing records. These tools do not automatically preserve or restore previous values. |
 | `tripsy_collaborators_update` | false | true | false | Can revoke editing or document/expense visibility permissions, or overwrite travel and notification preferences. Broader changes require API guest-management permission. |
-| `tripsy_documents_update` | false | true | false | Can overwrite or clear metadata and replace a parent association, changing document access. Omitted fields stay unchanged; moves require one destination and API permission checks. |
-| `tripsy_inbox_update` | false | true | false | Can overwrite a subject or clear existing associations during a move, removing the email from the manual-review inbox. Moves require one editable target. |
+| `tripsy_documents_update` | false | true | true | Accepts replacement thumbnail/favicon URLs on independently controlled external websites and can move documents into shared trips with different recipients. Can overwrite or clear metadata and replace a parent association, changing document access. Omitted fields stay unchanged; moves require one destination and API permission checks. |
+| `tripsy_inbox_update` | false | true | true | Conservatively covers moves that make externally received email content and attachments available to destination-trip collaborators. Can overwrite a subject or clear existing associations during a move, removing the email from the manual-review inbox. Moves require one editable target. The MCP handler only PATCHes the stored Tripsy record; it does not send email or modify a provider mailbox. |
 | `tripsy_collaborators_invite`, `tripsy_trips_create` | false | true | true | Can send guest invitations to external email recipients and expose trip data. Sent email cannot be unsent. Trip creation supports invitations through `data.guest_invites`; hints cover this optional mode too. |
 | `tripsy_documents_attach` | false | false | true | Adds an external HTTP(S) link or finalizes an uploaded private S3 file. File attachment requires an upload receipt bound to the caller and parent. |
 | `tripsy_documents_upload` | false | false | true | Sends supplied bytes to an API-issued private S3 URL and attaches the result in Tripsy. It accepts no server paths or arbitrary upload URLs and sends no Tripsy credentials to S3. |

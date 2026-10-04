@@ -115,7 +115,7 @@ func destructiveToolName(name string) bool {
 
 func openWorldToolName(name string) bool {
 	switch name {
-	case "tripsy_collaborators_invite", "tripsy_trips_create", "tripsy_documents_attach", "tripsy_documents_upload":
+	case "tripsy_collaborators_invite", "tripsy_trips_create", "tripsy_documents_attach", "tripsy_documents_upload", "tripsy_documents_update", "tripsy_inbox_update":
 		return true
 	default:
 		return false
