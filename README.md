@@ -228,6 +228,92 @@ Opening the hosted endpoint in a web browser redirects to the [Tripsy AI Tools s
 
 The previous `https://mcp.tripsy.app/mcp` endpoint remains available for existing clients.
 
+### Connect Your AI Client
+
+The hosted server requires no local Tripsy installation. Add it to your preferred client and complete the Tripsy OAuth sign-in. The commands below assume the client itself is already installed.
+
+#### Codex
+
+```sh
+codex mcp add tripsy --url https://mcp.tripsy.app
+codex mcp login tripsy
+```
+
+See the [Codex MCP documentation](https://developers.openai.com/codex/mcp).
+
+#### Claude Code
+
+```sh
+claude mcp add --transport http --scope user tripsy https://mcp.tripsy.app
+```
+
+Run `/mcp` inside Claude Code to authenticate. User scope makes the server available across projects. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+
+#### Grok Build
+
+```sh
+grok mcp add --transport http tripsy https://mcp.tripsy.app
+```
+
+OAuth opens in your browser on first use. To check the connection:
+
+```sh
+grok mcp list
+grok mcp doctor tripsy
+```
+
+See the [Grok Build MCP documentation](https://docs.x.ai/build/features/mcp-servers).
+
+#### Gemini CLI
+
+```sh
+gemini mcp add --transport http --scope user tripsy https://mcp.tripsy.app
+```
+
+Run `/mcp auth tripsy` inside Gemini CLI to authenticate. See the [Gemini CLI MCP documentation](https://geminicli.com/docs/tools/mcp-server/).
+
+#### VS Code / GitHub Copilot
+
+```sh
+code --add-mcp '{"name":"tripsy","type":"http","url":"https://mcp.tripsy.app"}'
+```
+
+Complete OAuth when connecting to the server in VS Code. See the [VS Code MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
+
+#### Cursor
+
+Merge this entry into `mcpServers` in `~/.cursor/mcp.json` for all projects, or `.cursor/mcp.json` for the current project. Preserve any existing server entries.
+
+```json
+{
+  "mcpServers": {
+    "tripsy": {
+      "url": "https://mcp.tripsy.app"
+    }
+  }
+}
+```
+
+Complete OAuth in Cursor. If using Cursor CLI, authenticate with:
+
+```sh
+agent mcp login tripsy
+```
+
+See the [Cursor MCP documentation](https://cursor.com/docs/mcp) and [Cursor CLI MCP commands](https://cursor.com/docs/cli/mcp).
+
+#### ChatGPT, Claude Chat, and Grok Chat
+
+These apps offer a custom MCP connection screen. Use `Tripsy` as the name, `https://mcp.tripsy.app` as the server URL, and OAuth authentication.
+
+| Client | Setup |
+| --- | --- |
+| ChatGPT | Open [Plugins](https://chatgpt.com/plugins), select **+**, then **Add custom MCP server**. Enter the server URL, configure OAuth, and finish creating and installing the plugin. |
+| Claude web / Desktop | Open **Customize → Connectors → Add → Custom → Web**, enter the server URL, and sign in. |
+| Grok chat | Open [Connectors](https://grok.com/connectors), select **New Connector → Custom**, enter the server URL, and authenticate. |
+
+Workspace administrators may need to enable custom connections. See the official setup guides for [ChatGPT](https://developers.openai.com/plugins/quickstart), [Claude](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities), and [Grok](https://docs.x.ai/grok/connectors).
+
 ### Self-Hosted Stdio
 
 Run `tripsy-mcp` locally when you want full control or stdio transport. It uses the same Tripsy token, config directory, API base URL, and secure token storage as the CLI.
@@ -247,6 +333,34 @@ Example MCP client configuration:
   }
 }
 ```
+
+After [installing the binaries](#install), authenticate once:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+tripsy auth login --username you@example.com
+```
+
+As an alternative to the hosted setup, register the local server in your chosen client:
+
+```sh
+# Codex
+codex mcp add tripsy -- "$HOME/.local/bin/tripsy-mcp"
+
+# Claude Code
+claude mcp add --transport stdio --scope user tripsy -- "$HOME/.local/bin/tripsy-mcp"
+
+# Grok Build
+grok mcp add tripsy -- "$HOME/.local/bin/tripsy-mcp"
+
+# Gemini CLI
+gemini mcp add --scope user tripsy "$HOME/.local/bin/tripsy-mcp"
+
+# VS Code / GitHub Copilot
+code --add-mcp "{\"name\":\"tripsy\",\"type\":\"stdio\",\"command\":\"$HOME/.local/bin/tripsy-mcp\"}"
+```
+
+These examples use the installer's default macOS/Linux path. Adjust the executable path if you installed elsewhere. For Cursor or other stdio-capable clients, use the JSON example above with the absolute path to `tripsy-mcp` as `command`. Choose either the hosted or local configuration for the `tripsy` entry; remove or replace an existing entry before switching.
 
 ### Self-Hosted HTTP
 
