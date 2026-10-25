@@ -126,6 +126,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 		SessionTimeout: 30 * time.Minute,
 	})
 	var httpHandler http.Handler = handler
+	httpHandler = normalizeMCPContentType(httpHandler)
 	httpHandler = explicitToolAnnotationsHTTPHandler{next: httpHandler}
 	if requireBearer {
 		verifier := mcpserver.BearerTokenVerifier(info.APIBase)
@@ -164,6 +165,22 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
+}
+
+func normalizeMCPContentType(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.Header.Get("Content-Type") != "application/json" {
+			mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+			if err == nil && mediaType == "application/json" {
+				// go-sdk v1.5.0 requires an exact match, rejecting valid JSON media
+				// types with parameters such as charset=utf-8. Leave unsupported
+				// media types and origin checks to the SDK.
+				r = r.Clone(r.Context())
+				r.Header.Set("Content-Type", mediaType)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func redirectBrowserToMCPDocumentation(next http.Handler) http.Handler {
