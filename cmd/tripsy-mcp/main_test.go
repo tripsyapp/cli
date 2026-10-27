@@ -217,7 +217,7 @@ func TestStreamableHTTPListToolsThroughHostedHandlerStack(t *testing.T) {
 	streamHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{Stateless: true})
-	httpHandler := explicitToolAnnotationsHTTPHandler{next: streamHandler}
+	httpHandler := explicitToolAnnotationsHTTPHandler{next: normalizeMCPContentType(streamHandler)}
 	verifier := func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		if token != "test-token" {
 			return nil, auth.ErrInvalidToken
@@ -233,7 +233,7 @@ func TestStreamableHTTPListToolsThroughHostedHandlerStack(t *testing.T) {
 	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
 	session, err := client.Connect(testContext(t), &mcp.StreamableClientTransport{
 		Endpoint:             httpServer.URL,
-		HTTPClient:           &http.Client{Transport: bearerTokenTransport{token: "test-token"}},
+		HTTPClient:           &http.Client{Transport: bearerTokenTransport{token: "test-token", contentType: "application/json; charset=utf-8"}},
 		DisableStandaloneSSE: true,
 	}, nil)
 	if err != nil {
@@ -253,13 +253,92 @@ func TestStreamableHTTPListToolsThroughHostedHandlerStack(t *testing.T) {
 	}
 }
 
+func TestStreamableHTTPContentTypeValidation(t *testing.T) {
+	server := mcp.NewServer(&mcp.Implementation{Name: "test-server", Version: "test"}, nil)
+	streamHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+		return server
+	}, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
+	handler := explicitToolAnnotationsHTTPHandler{next: normalizeMCPContentType(streamHandler)}
+	verifier := func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+		if token != "test-token" {
+			return nil, auth.ErrInvalidToken
+		}
+		return &auth.TokenInfo{UserID: "test-user", Expiration: time.Now().Add(time.Hour)}, nil
+	}
+	mux := http.NewServeMux()
+	registerMCPHTTPHandlers(mux, "/mcp", auth.RequireBearerToken(verifier, nil)(handler))
+
+	tests := []struct {
+		name        string
+		contentType string
+		body        string
+		token       string
+		origin      string
+		accept      string
+		status      int
+	}{
+		{name: "plain JSON", contentType: "application/json", status: http.StatusOK},
+		{name: "UTF-8 charset", contentType: "application/json; charset=utf-8", status: http.StatusOK},
+		{name: "compact charset", contentType: "application/json;charset=UTF-8", status: http.StatusOK},
+		{name: "quoted charset", contentType: `application/json; charset="utf-8"`, status: http.StatusOK},
+		{name: "case insensitive media type", contentType: "Application/JSON; Charset=UTF-8", status: http.StatusOK},
+		{name: "missing content type", status: http.StatusUnsupportedMediaType},
+		{name: "plain text", contentType: "text/plain", status: http.StatusUnsupportedMediaType},
+		{name: "form", contentType: "application/x-www-form-urlencoded", status: http.StatusUnsupportedMediaType},
+		{name: "JSON suffix", contentType: "application/ld+json", status: http.StatusUnsupportedMediaType},
+		{name: "JSON prefix", contentType: "application/jsonp", status: http.StatusUnsupportedMediaType},
+		{name: "malformed parameter", contentType: "application/json; charset", status: http.StatusUnsupportedMediaType},
+		{name: "malformed JSON", contentType: "application/json; charset=utf-8", body: "{", status: http.StatusBadRequest},
+		{name: "invalid bearer", contentType: "application/json; charset=utf-8", token: "invalid", status: http.StatusUnauthorized},
+		{name: "cross origin", contentType: "application/json; charset=utf-8", origin: "https://untrusted.test", status: http.StatusForbidden},
+		{name: "invalid accept", contentType: "application/json; charset=utf-8", accept: "text/html", status: http.StatusBadRequest},
+	}
+	for _, path := range []string{"/", "/mcp"} {
+		for _, tt := range tests {
+			t.Run(path+"/"+tt.name, func(t *testing.T) {
+				body := tt.body
+				if body == "" {
+					body = `{"jsonrpc":"2.0","id":1,"method":"ping"}`
+				}
+				req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+				req.Header.Set("Content-Type", tt.contentType)
+				req.Header.Set("Accept", firstNonEmpty(tt.accept, "application/json, text/event-stream"))
+				req.Header.Set("Authorization", "Bearer "+firstNonEmpty(tt.token, "test-token"))
+				if tt.origin != "" {
+					req.Header.Set("Origin", tt.origin)
+				}
+				res := httptest.NewRecorder()
+				mux.ServeHTTP(res, req)
+				if res.Code != tt.status {
+					t.Fatalf("status = %d, want %d: %s", res.Code, tt.status, res.Body.String())
+				}
+				if tt.status == http.StatusOK {
+					var message struct {
+						Result json.RawMessage `json:"result"`
+					}
+					if err := json.Unmarshal(res.Body.Bytes(), &message); err != nil || string(message.Result) != "{}" {
+						t.Fatalf("expected successful ping response, got %s (decode error: %v)", res.Body.String(), err)
+					}
+				}
+				if got := req.Header.Get("Content-Type"); got != tt.contentType {
+					t.Fatalf("original Content-Type changed to %q, want %q", got, tt.contentType)
+				}
+			})
+		}
+	}
+}
+
 type bearerTokenTransport struct {
-	token string
+	token       string
+	contentType string
 }
 
 func (t bearerTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
 	req.Header.Set("Authorization", "Bearer "+t.token)
+	if t.contentType != "" {
+		req.Header.Set("Content-Type", t.contentType)
+	}
 	return http.DefaultTransport.RoundTrip(req)
 }
 
