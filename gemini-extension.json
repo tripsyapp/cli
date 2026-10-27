@@ -1,0 +1,11 @@
+{
+  "name": "tripsy",
+  "version": "2.2.0",
+  "description": "Plan trips and manage itineraries, stays, transport, activities, expenses, and documents in Tripsy.",
+  "mcpServers": {
+    "tripsy": {
+      "httpUrl": "https://mcp.tripsy.app"
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}
