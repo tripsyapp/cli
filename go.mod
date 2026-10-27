@@ -1,6 +1,6 @@
 module github.com/tripsyapp/cli
 
-go 1.26.6
+go 1.26.10
 
 require (
 	github.com/google/jsonschema-go v0.4.2
