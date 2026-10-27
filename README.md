@@ -575,6 +575,8 @@ gemini extensions validate .
 GEMINI_CLI_HOME="$(mktemp -d)" gemini extensions install . --consent
 ```
 
+The installation check may ask you to trust the source directory. It keeps the test installation in a temporary Gemini configuration.
+
 For discovery in the [official Gemini CLI Extensions Gallery](https://geminicli.com/extensions/), the repository must be public, have the `gemini-cli-extension` GitHub topic, and keep the extension manifest at its root. Google crawls matching repositories daily and lists extensions that pass validation; no submission form is required. See the [official extension publishing guide](https://geminicli.com/docs/extensions/releasing/).
 
 
