@@ -287,11 +287,23 @@ See the [Grok Build MCP documentation](https://docs.x.ai/build/features/mcp-serv
 
 #### Gemini CLI
 
+Install the Tripsy extension to connect the hosted MCP server and load Tripsy itinerary guidance:
+
+```sh
+gemini extensions install https://github.com/tripsyapp/cli
+```
+
+Restart Gemini CLI, then run `/mcp auth tripsy` to sign in through Tripsy OAuth. No local Tripsy installation or API token is needed. Try asking: "Show my upcoming trips" or "Plan a three-day Rome itinerary for June 1–3, 2027."
+
+If you previously configured the hosted server manually, remove that user-scope entry with `gemini mcp remove --scope user tripsy` before using the extension. A manually configured server with the same name takes precedence over the extension.
+
+You can also connect the server manually:
+
 ```sh
 gemini mcp add --transport http --scope user tripsy https://mcp.tripsy.app
 ```
 
-Run `/mcp auth tripsy` inside Gemini CLI to authenticate. See the [Gemini CLI MCP documentation](https://geminicli.com/docs/tools/mcp-server/).
+Run `/mcp auth tripsy` inside Gemini CLI to authenticate. See the [Gemini CLI extension documentation](https://geminicli.com/docs/extensions/) and [MCP documentation](https://geminicli.com/docs/tools/mcp-server/).
 
 #### VS Code / GitHub Copilot
 
@@ -551,6 +563,21 @@ checksums.txt
 ```
 
 Each platform archive contains `tripsy`, `tripsy-mcp`, `README.md`, and `LICENSE`. The release workflow creates these assets when a `vX.Y.Z` tag is pushed.
+
+### Gemini CLI extension
+
+The repository root also contains `gemini-extension.json` and `GEMINI.md` for the hosted Tripsy Gemini CLI extension. Keep the manifest version synchronized with the next `vX.Y.Z` release tag. Gemini CLI installs the extension from the tagged source archive; the existing platform binary archives remain available to CLI users.
+
+Before releasing, validate and smoke-test the extension with Gemini CLI:
+
+```sh
+gemini extensions validate .
+GEMINI_CLI_HOME="$(mktemp -d)" gemini extensions install . --consent
+```
+
+The installation check may ask you to trust the source directory. It keeps the test installation in a temporary Gemini configuration.
+
+For discovery in the [official Gemini CLI Extensions Gallery](https://geminicli.com/extensions/), the repository must be public, have the `gemini-cli-extension` GitHub topic, and keep the extension manifest at its root. Google crawls matching repositories daily and lists extensions that pass validation; no submission form is required. See the [official extension publishing guide](https://geminicli.com/docs/extensions/releasing/).
 
 
 ### Attached booking emails through MCP
