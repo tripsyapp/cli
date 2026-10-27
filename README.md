@@ -131,6 +131,27 @@ tripsy doctor --verbose
 
 Most trip subresource commands require `--trip <trip-id>` because the public API scopes those resources under a trip.
 
+## Transportation types
+
+Transportation creates, updates, and list filters accept only these exact `transportation_type` slugs:
+
+| Slug | Category |
+| --- | --- |
+| `airplane` | Flight |
+| `bike` | Bike |
+| `bus` | Bus |
+| `car` | Car Rental |
+| `roadtrip` | Drive / Road Trip |
+| `cruise` | Cruise |
+| `ferry` | Ferry |
+| `motorcycle` | Motorcycle |
+| `subway` | Subway |
+| `train` | Train |
+| `transfer` | Transfer |
+| `walk` | Walk |
+
+The CLI and MCP reject unknown, empty, null, or non-string values before sending a request, including values supplied through `--data`, `--set`, MCP `data`, or raw API requests. Omit `transportation_type` on updates to preserve the existing type. Custom activity category slugs cannot be used for transportation types. Use `car` for a car rental rather than `car_rental`, and `transfer` for an airport or hotel transfer.
+
 ## Trip guests
 
 ```sh

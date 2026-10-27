@@ -61,6 +61,9 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 	if err != nil {
 		return nil, err
 	}
+	if err := validateTransportationQuery(target); err != nil {
+		return nil, err
+	}
 
 	var reader io.Reader
 	if body != nil {
@@ -82,6 +85,9 @@ func (c *Client) Request(ctx context.Context, method, path string, query url.Val
 				if _, present := fields[field]; present {
 					return nil, fmt.Errorf("subscription status cannot be changed through CLI or MCP")
 				}
+			}
+			if err := validateTransportationFields(method, target, fields); err != nil {
+				return nil, err
 			}
 		}
 		reader = bytes.NewReader(encoded)

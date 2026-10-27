@@ -41,7 +41,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
 - Use `transportations` for point-to-point movement and the transportation slugs listed below.
 - Activities can use either a documented built-in `activity_type` slug or a visible custom category slug. Custom category slugs are only valid on Activity objects through `activity_type`; do not use them for lodging, transportation, expenses, or trips. If an activity has an `activity_type` that is not in the built-in list, fetch visible custom categories through `tripsy_categories_list` or `tripsy categories list` and resolve the slug there before displaying the category name, icon, or color.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
-- For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
+- For transfer activities, create a transportation with `transportation_type` set to `transfer`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - Delete operations can be executed when requested. Tripsy deletes are recoverable, so they can be undone if necessary.
 
 ## Avoid
@@ -89,7 +89,7 @@ Use this file when an agent is creating or maintaining Tripsy itinerary data thr
   },
   "transfer": {
     "name": "Transfer to Hotel Eden",
-    "transportation_type": "roadtrip",
+    "transportation_type": "transfer",
     "departure_description": "Rome Fiumicino Airport",
     "departure_address": "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
     "departure_latitude": 41.8003,
@@ -125,8 +125,10 @@ lodging
 ## Transportation Categories
 
 ```text
-airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
+airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, subway, train, transfer, walk
 ```
+
+Only these exact slugs are accepted for transportation types and filters. Use `car` for Car Rental, `roadtrip` for Drive / Road Trip, `subway` for Subway, and `transfer` for Transfer. Custom activity category slugs are not valid transportation types.
 
 ## Pull Request Conventions
 
