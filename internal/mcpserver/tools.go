@@ -15,7 +15,7 @@ import (
 
 const activityCategoryHint = "Built-in activity_type slugs for Activity objects: concert, fit, general, kids, museum, note, relax, restaurant, shopping, theater, tour, event, meeting, bar, cafe, parking, amusementPark, aquarium, atm, bakery, bank, beach, brewery, campground, evCharger, fireStation, fitnessCenter, foodMarket, gasStation, hospital, laundry, library, marina, movieTheater, nationalPark, nightlife, park, pharmacy, police, postOffice, publicTransport, restroom, school, stadium, university, winery, zoo. Activity objects may also use visible custom category slugs returned by tripsy_categories_list through activity_type. Custom category slugs are only valid on Activity objects, not lodging, transportation, expense, or trip resources. MCP clients must resolve those custom slugs to display the correct activity category name, icon, and color."
 
-const transportationCategoryHint = "Supported transportation_type slugs: airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk."
+const transportationCategoryHint = api.TransportationTypeGuidance
 
 const tripTravellingAndDateHint = "Trip list results include trips where the authenticated user is travelling: owned trips and shared trips with current-user is_travelling permission. For trip dates, has_dates is authoritative: when has_dates is false, ignore starts_at and ends_at even if those fields are present."
 
@@ -103,7 +103,7 @@ type transportationCreateInput struct {
 	TripID                  string         `json:"trip_id" jsonschema:"Tripsy trip id."`
 	Data                    map[string]any `json:"data,omitempty" jsonschema:"Optional raw transportation fields. Prefer the typed top-level fields when possible; values here are merged first."`
 	Name                    string         `json:"name,omitempty" jsonschema:"Transportation segment name. For flights, omit name unless the user provided one."`
-	TransportationType      string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use roadtrip."`
+	TransportationType      string         `json:"transportation_type,omitempty" jsonschema:"Supported transportation type slug. For flights, use airplane. For transfer activities, use transfer."`
 	DepartureDescription    string         `json:"departure_description,omitempty" jsonschema:"Departure location name or description. For flights, use the departure airport IATA code such as JFK or FCO. For transfers, include the real place name."`
 	DepartureAt             string         `json:"departure_at,omitempty" jsonschema:"UTC ISO-8601 departure timestamp when known. Timed values are always UTC; MCP clients must convert this value to departure_timezone before displaying the local departure date/time."`
 	DepartureTimezone       string         `json:"departure_timezone,omitempty" jsonschema:"Departure location IANA timezone. MCP clients must use this timezone to convert UTC departure_at before displaying the local departure date/time."`
@@ -267,8 +267,9 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		"When displaying activities, convert UTC starts_at/ends_at into the activity timezone before formatting the local date/time, and resolve activity_type against built-in categories first; if the slug is not built in, fetch visible custom categories with tripsy_categories_list and use the matching custom category metadata so the correct activity category name, icon, and color are shown.",
 		"Use hostings for hotels and lodging, with address, latitude, and longitude when known. When displaying hostings, convert UTC starts_at/ends_at into the lodging timezone before formatting the local date/time.",
 		"Use transportations for point-to-point movement.",
+		transportationCategoryHint,
 		"For flights, create a transportation with transportation_type airplane, set departure_description and arrival_description to the airport IATA codes, include the airports' departure/arrival latitudes and longitudes, and omit name unless the user provided one.",
-		"For transfer activities, create a transportation with transportation_type roadtrip and fill departure and arrival name/description, address, latitude, and longitude.",
+		"For transfer activities, create a transportation with transportation_type transfer and fill departure and arrival name/description, address, latitude, and longitude.",
 		"Use exact UTC ISO-8601 timestamps for every timed value and set the relevant local timezone so display clients can convert UTC values into the correct local date/time for the item's location.",
 		"When displaying transportations, convert departure_at with departure_timezone and arrival_at with arrival_timezone; never apply a single timezone to both endpoints unless those two fields explicitly match.",
 		"Add required latitude and longitude for every activity, and add address when known. Add address, latitude, and longitude for map-relevant hostings and transportation endpoints.",
@@ -315,7 +316,7 @@ func (s *service) itineraryGuidance(context.Context, *mcp.CallToolRequest, itine
 		},
 		"transfer": map[string]any{
 			"name":                      "Transfer to Hotel Eden",
-			"transportation_type":       "roadtrip",
+			"transportation_type":       "transfer",
 			"departure_description":     "Rome Fiumicino Airport",
 			"departure_address":         "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
 			"departure_latitude":        41.8003,
@@ -745,7 +746,7 @@ func (s *service) registerResource(server *mcp.Server, spec resourceSpec) {
 			return toolOutput(s.do(ctx, req, "POST", fmt.Sprintf(spec.ListPath, apiPathSegment(in.TripID)), spec.responseQuery(nil), in.Data, spec.Title+" created"))
 		})
 	}
-	addTool(server, toolName("tripsy", spec.Prefix, "update"), "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id.", idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
+	addTool(server, toolName("tripsy", spec.Prefix, "update"), "Update "+spec.Title, "Update a Tripsy "+strings.ToLower(spec.Title)+" by id."+filterText, idempotentWrite(), func(ctx context.Context, req *mcp.CallToolRequest, in tripResourceUpdateInput) (*mcp.CallToolResult, any, error) {
 		if strings.TrimSpace(in.TripID) == "" {
 			return nil, nil, fmt.Errorf("trip_id is required")
 		}

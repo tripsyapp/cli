@@ -37,7 +37,7 @@ The CLI and MCP server talk to the public Tripsy API at `https://api.tripsy.app`
 - Use `hostings` for hotels/lodging. The lodging category slug is `lodging`.
 - Use `transportations` for point-to-point movement such as flights, trains, cars, buses, cruises, ferries, roadtrips, walks, and similar travel.
 - For flights, create a transportation with `transportation_type` set to `airplane`, set `departure_description` and `arrival_description` to the airport IATA codes, include each airport's latitude and longitude, and omit `name` unless the user provided one.
-- For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
+- For transfer activities, create a transportation with `transportation_type` set to `transfer`, and fill both departure and arrival locations with name/description, address, latitude, and longitude.
 - Delete operations can be executed when requested. Tripsy deletes are recoverable, so they can be undone if necessary. State what will be deleted before running the command when the user has not already been explicit.
 
 Avoid these common itinerary mistakes:
@@ -306,7 +306,7 @@ Golden path payload shape:
   },
   "transfer": {
     "name": "Transfer to Hotel Eden",
-    "transportation_type": "roadtrip",
+    "transportation_type": "transfer",
     "departure_description": "Rome Fiumicino Airport",
     "departure_address": "Via dell'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy",
     "departure_latitude": 41.8003,
@@ -341,8 +341,10 @@ Use `lodging` for hotel/lodging category semantics, but create actual lodging re
 Transportation category slugs:
 
 ```text
-airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, train, walk
+airplane, bike, bus, car, roadtrip, cruise, ferry, motorcycle, subway, train, transfer, walk
 ```
+
+Only these exact slugs are accepted for transportation types and filters. Use `car` for Car Rental, `roadtrip` for Drive / Road Trip, `subway` for Subway, and `transfer` for Transfer. Custom activity category slugs are not valid transportation types.
 
 Use these slugs with `transportation_type` on `tripsy transportations`.
 
@@ -393,7 +395,7 @@ Use `provider_reservation_code` for provider-issued transportation reservation, 
 
 When displaying transportations, convert UTC `departure_at` with `departure_timezone` and UTC `arrival_at` with `arrival_timezone` before formatting local endpoint dates/times. Do not apply the departure timezone to arrival times or the arrival timezone to departure times unless those fields explicitly match.
 
-For transfer activities, create a transportation with `transportation_type` set to `roadtrip`, and include departure and arrival names/descriptions, addresses, latitudes, and longitudes.
+For transfer activities, create a transportation with `transportation_type` set to `transfer`, and include departure and arrival names/descriptions, addresses, latitudes, and longitudes.
 
 Expenses:
 

@@ -2351,6 +2351,10 @@ func commandCatalog() []commandSpec {
 }
 
 func resourceCommandSpec(plural, singular, summary, createExample string) commandSpec {
+	gotchas := []string{fmt.Sprintf("Use --trip for every %s command because the public API scopes %s under a trip.", singular, plural)}
+	if plural == "transportations" {
+		gotchas = append(gotchas, api.TransportationTypeGuidance)
+	}
 	return commandSpec{
 		Name:        plural,
 		Usage:       fmt.Sprintf("tripsy %s <list|show|create|update|delete> --trip <trip-id>", plural),
@@ -2361,7 +2365,7 @@ func resourceCommandSpec(plural, singular, summary, createExample string) comman
 			createExample,
 			fmt.Sprintf("tripsy %s update --trip 42 <id> --set notes='Updated notes'", plural),
 		},
-		Gotchas: []string{fmt.Sprintf("Use --trip for every %s command because the public API scopes %s under a trip.", singular, plural)},
+		Gotchas: gotchas,
 	}
 }
 
