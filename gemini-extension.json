@@ -1,6 +1,6 @@
 {
   "name": "tripsy",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Plan trips and manage itineraries, stays, transport, activities, expenses, and documents in Tripsy.",
   "mcpServers": {
     "tripsy": {
