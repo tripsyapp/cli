@@ -227,7 +227,7 @@ func TestStreamableHTTPListToolsThroughHostedHandlerStack(t *testing.T) {
 			UserID:     "test-user",
 		}, nil
 	}
-	httpServer := httptest.NewServer(auth.RequireBearerToken(verifier, nil)(httpHandler))
+	httpServer := httptest.NewServer(requireMCPBearerToken(httpHandler, verifier, nil))
 	defer httpServer.Close()
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
@@ -266,7 +266,7 @@ func TestStreamableHTTPContentTypeValidation(t *testing.T) {
 		return &auth.TokenInfo{UserID: "test-user", Expiration: time.Now().Add(time.Hour)}, nil
 	}
 	mux := http.NewServeMux()
-	registerMCPHTTPHandlers(mux, "/mcp", auth.RequireBearerToken(verifier, nil)(handler))
+	registerMCPHTTPHandlers(mux, "/mcp", requireMCPBearerToken(handler, verifier, nil))
 
 	tests := []struct {
 		name        string
