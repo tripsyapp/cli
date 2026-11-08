@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 	"github.com/tripsyapp/cli/internal/cli"
@@ -44,7 +45,7 @@ func main() {
 
 	flags := flag.NewFlagSet("tripsy-mcp", flag.ExitOnError)
 	flags.StringVar(&opts.APIBase, "api-base", "", "Tripsy API base URL; defaults to TRIPSY_API_BASE, stored config, or https://api.tripsy.app")
-	flags.StringVar(&opts.Token, "token", "", "Tripsy API token for stdio mode; HTTP mode always requires client bearer tokens")
+	flags.StringVar(&opts.Token, "token", "", "Tripsy API token for stdio mode; HTTP tool calls require client bearer tokens")
 	flags.StringVar(&opts.ConfigDir, "config-dir", "", "Tripsy CLI config directory; defaults to TRIPSY_CONFIG_DIR or ~/.config/tripsy-cli")
 	flags.BoolVar(&opts.DisableRawRequest, "disable-raw-request", false, "do not expose the broad tripsy_raw_request MCP tool")
 	flags.StringVar(&transport, "transport", "stdio", "MCP transport: stdio or http")
@@ -52,7 +53,7 @@ func main() {
 	flags.StringVar(&httpPath, "http-path", "/mcp", "HTTP endpoint path for --transport=http")
 	flags.BoolVar(&httpStateless, "http-stateless", false, "run streamable HTTP without MCP session retention")
 	flags.BoolVar(&httpJSON, "http-json-response", false, "prefer application/json responses for streamable HTTP")
-	flags.BoolVar(&httpRequireBearer, "http-require-bearer", false, "deprecated; HTTP mode always requires Authorization: Bearer from the client")
+	flags.BoolVar(&httpRequireBearer, "http-require-bearer", false, "deprecated; HTTP tool calls always require Authorization: Bearer from the client")
 	flags.StringVar(&publicURL, "public-url", os.Getenv("TRIPSY_MCP_PUBLIC_URL"), "public HTTPS base URL for OAuth discovery, such as https://mcp.tripsy.app")
 	flags.StringVar(&oauthIssuer, "oauth-issuer", os.Getenv("TRIPSY_OAUTH_ISSUER"), "OAuth issuer for hosted MCP discovery, such as https://my.tripsy.app")
 	flags.StringVar(&oauthUserinfoEndpoint, "oauth-userinfo-endpoint", os.Getenv("TRIPSY_OAUTH_USERINFO_ENDPOINT"), "OAuth userinfo endpoint for validating bearer access tokens; defaults to <oauth-issuer>/oauth/userinfo")
@@ -135,7 +136,7 @@ func runHTTP(server *mcp.Server, info mcpserver.RuntimeInfo, addr, path string, 
 			verifier = mcpserver.HostedTokenVerifier(info.APIBase, oauthConfig.userinfoURL())
 			authOptions.ResourceMetadataURL = oauthConfig.resourceMetadataURL()
 		}
-		httpHandler = auth.RequireBearerToken(verifier, authOptions)(httpHandler)
+		httpHandler = requireMCPBearerToken(httpHandler, verifier, authOptions)
 	}
 
 	mux := http.NewServeMux()
@@ -165,6 +166,44 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
+}
+
+func requireMCPBearerToken(next http.Handler, verifier auth.TokenVerifier, opts *auth.RequireBearerTokenOptions) http.Handler {
+	protected := auth.RequireBearerToken(verifier, opts)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.Header.Get("Authorization") == "" {
+			// Clients may probe for an SSE stream after anonymous initialization.
+			// Decline it without triggering OAuth or exposing session events.
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "anonymous clients must use POST", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.Method == http.MethodPost && r.Header.Get("Authorization") == "" {
+			// Only inspect small anonymous discovery messages. Authenticated tool
+			// calls, including document uploads, go straight to the verifier.
+			const maxDiscoveryBody = 64 << 10
+			body, err := io.ReadAll(io.LimitReader(r.Body, maxDiscoveryBody+1))
+			if err == nil && len(body) <= maxDiscoveryBody {
+				// Use the transport's decoder so differences in JSON field casing
+				// cannot disguise a protected call as a discovery request. Batches
+				// and all methods outside this allowlist still require sign-in.
+				message, err := jsonrpc.DecodeMessage(body)
+				if request, ok := message.(*jsonrpc.Request); err == nil && ok {
+					switch request.Method {
+					case "initialize", "notifications/initialized", "ping", "tools/list":
+						r = r.Clone(r.Context())
+						r.Body = struct {
+							io.Reader
+							io.Closer
+						}{bytes.NewReader(body), r.Body}
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+		}
+		protected.ServeHTTP(w, r)
+	})
 }
 
 func normalizeMCPContentType(next http.Handler) http.Handler {

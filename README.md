@@ -422,7 +422,7 @@ https://mcp.tripsy.app/ -> http://127.0.0.1:8787/
 https://mcp.tripsy.app/mcp -> http://127.0.0.1:8787/mcp
 ```
 
-HTTP MCP always requires each request to include `Authorization: Bearer <token>`. When hosted OAuth is configured, the server first validates OAuth access tokens through the issuer's userinfo endpoint, then falls back to validating Tripsy API tokens against `/v1/me`. It uses the validated token only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user.
+HTTP MCP allows `initialize`, `notifications/initialized`, `ping`, and `tools/list` without a token, so clients can discover the server and its tools before signing in. Anonymous SSE stream probes (`GET`) receive `405 Method Not Allowed`; discovery uses `POST`. All tool calls (`tools/call`) and other requests require `Authorization: Bearer <token>`. If an authorization header is supplied, it must be valid even for discovery. When hosted OAuth is configured, the server first validates OAuth access tokens through the issuer's userinfo endpoint, then falls back to validating Tripsy API tokens against `/v1/me`. It uses the validated token only for that downstream Tripsy API request, so each remote client acts as its own Tripsy user.
 
 HTTP mode intentionally ignores `--token`, `TRIPSY_TOKEN`, keychain tokens, and legacy `credentials.json` tokens to avoid server-side credential fallback. For public hosted servers, keep `--disable-raw-request` enabled unless you intentionally want to expose the broader `tripsy_raw_request` tool.
 
@@ -435,7 +435,7 @@ TRIPSY_OAUTH_SCOPES="profile email"
 TRIPSY_API_BASE=https://api.tripsy.app
 ```
 
-With those values, unauthenticated requests to `/` and `/mcp` include a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
+With those values, unauthenticated tool calls to `/` and `/mcp` receive HTTP `401` with a `WWW-Authenticate` challenge pointing at `https://mcp.tripsy.app/.well-known/oauth-protected-resource`. Clients can use that challenge to sign in and retry the call. That metadata advertises `https://my.tripsy.app` as the OAuth authorization server and validates OAuth bearer access tokens through `https://my.tripsy.app/oauth/userinfo`.
 
 ## MCP Tools
 
@@ -563,6 +563,16 @@ checksums.txt
 ```
 
 Each platform archive contains `tripsy`, `tripsy-mcp`, `README.md`, and `LICENSE`. The release workflow creates these assets when a `vX.Y.Z` tag is pushed.
+
+### MCP Registry
+
+The `Publish MCP Registry` workflow publishes `server.json` on `v*` tags or manual dispatch. Metadata changes, including the server icon, require publication under a new version because [published registry versions are immutable](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/versioning.mdx). After merging a metadata change, choose an unused version and publish it from `main`:
+
+```sh
+gh workflow run publish-mcp-registry.yml --ref main -f version=NEW_VERSION
+```
+
+Replace `NEW_VERSION` with the new registry version. The workflow sets the manifest version from that input (or the release tag), validates it, and publishes through GitHub OIDC. Deploy hosted MCP behavior changes separately with `make deploy`.
 
 ### Gemini CLI extension
 
